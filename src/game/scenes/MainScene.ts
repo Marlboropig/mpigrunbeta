@@ -273,7 +273,11 @@ export class MainScene extends Phaser.Scene {
       const obs = this.obstacles.create(width + 100, height - h, 'rekt_zone').setOrigin(0.5, 0);
       this.applyTheme(obs, theme);
       this.createScoreZone(width + 100, speed);
+
+      // High density spawn
       this.spawnCoinRandomly(width + 100, height - h - 100, speed);
+      // Riskier coin right at the edge of the pillar
+      this.spawnCoinRandomly(width + 150, height - h - 40, speed, true);
     }
     else if (pattern === 1) {
       const h = Phaser.Math.Between(minClearance, height - 350);
@@ -281,7 +285,10 @@ export class MainScene extends Phaser.Scene {
       obs.setFlipY(true);
       this.applyTheme(obs, theme);
       this.createScoreZone(width + 100, speed);
+
       this.spawnCoinRandomly(width + 100, h + 100, speed);
+      // Riskier coin right at the edge of the top pillar
+      this.spawnCoinRandomly(width + 150, h + 40, speed, true);
     }
     else {
       const topH = Phaser.Math.Between(150, height - gap - 150);
@@ -294,7 +301,11 @@ export class MainScene extends Phaser.Scene {
 
       const safeGap = this.add.image(width + 100, topH + gap / 2, 'safe_gap').setDisplaySize(60, gap).setAlpha(0.4);
       this.createScoreZone(width + 100, speed, safeGap);
-      this.spawnCoinRandomly(width + 100, topH + gap / 2, speed);
+
+      // Spawn a trail/cluster in the gap
+      this.spawnCoinRandomly(width + 70, topH + gap / 2, speed);
+      this.spawnCoinRandomly(width + 130, topH + gap / 2 - 40, speed, true); // Dangerous Top
+      this.spawnCoinRandomly(width + 130, topH + gap / 2 + 40, speed, true); // Dangerous Bottom
     }
 
     this.obstacles.getChildren().forEach((child: any) => {
@@ -302,10 +313,19 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  private spawnCoinRandomly(x: number, y: number, speed: number) {
-    if (Phaser.Math.Between(0, 10) > 4) {
-      const coin = this.coins.create(x, y, 'coin').setScale(0.8);
+  private spawnCoinRandomly(x: number, y: number, speed: number, highRisk: boolean = false) {
+    // Increased base probability (70% instead of 50%)
+    const chance = highRisk ? 8 : 7;
+    if (Phaser.Math.Between(0, 10) < chance) {
+      const coin = this.coins.create(x, y, 'coin').setScale(highRisk ? 1.0 : 0.8);
+
+      if (highRisk) {
+        // High risk coins glow or look more enticing
+        coin.setTint(0xFFFF00);
+      }
+
       (coin.body as Phaser.Physics.Arcade.Body).velocity.x = -speed;
+      (coin.body as Phaser.Physics.Arcade.Body).setCircle(coin.width * 0.4); // Tight hitbox
 
       this.tweens.add({
         targets: coin,
