@@ -33,7 +33,7 @@ export default function GamePage() {
             </div>
 
             {/* Hidden navigation - only visible on hover or via specific touch area if needed */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-100 transition-opacity z-[300]">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-100 transition-opacity z-50">
                 <Link
                     href="/"
                     className="text-[#14F195]/30 hover:text-[#14F195] text-[9px] font-black uppercase tracking-[5px] transition-all"

@@ -116,7 +116,7 @@ export default function PhaserGame() {
     };
 
     return (
-        <div className="relative w-full h-[100dvh] flex items-center justify-center overflow-hidden bg-black">
+        <div className="relative w-full h-dvh flex items-center justify-center overflow-hidden bg-black">
             {/* The Actual Canvas Wrapper */}
             <div ref={gameContainerRef} className="w-full h-full max-w-[450px] max-h-[800px] shadow-[0_0_100px_rgba(20,241,149,0.1)] relative overflow-hidden md:rounded-3xl md:border md:border-white/5" id="game-container">
 
@@ -166,12 +166,12 @@ export default function PhaserGame() {
 
                 {/* Pause Modal */}
                 {isPaused && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xl z-[100] flex items-center justify-center p-6 animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto">
                         <div className="w-full max-w-[320px] bg-black/80 border border-[#FFD700]/30 rounded-2xl p-6 relative shadow-2xl animate-zoom-in">
                             <div className="absolute inset-1 border border-[#FFD700]/5 rounded-xl pointer-events-none" />
                             <div className="text-center mb-6">
                                 <h2 className="text-[#FFD700] text-sm font-bold tracking-[8px] uppercase">PAUSED</h2>
-                                <div className="w-full h-[1px] gold-glow-line mt-3 opacity-30" />
+                                <div className="w-full h-px gold-glow-line mt-3 opacity-30" />
                             </div>
                             <div className="flex flex-col gap-4">
                                 <button onClick={togglePause} className="hex-button w-full h-12 bg-[#14F195]/10 green-glow-border flex items-center justify-center">
@@ -205,11 +205,11 @@ export default function PhaserGame() {
 
                 {/* Game Over UI */}
                 {gameState === GameState.GAME_OVER && (
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-2xl flex flex-col items-center justify-center z-[200] animate-fade-in font-['var(--font-orbitron)'] p-6 pointer-events-auto">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center z-[200] animate-fade-in font-['var(--font-orbitron)'] p-6 pointer-events-auto">
                         <div className="flex items-center gap-3 mb-8">
-                            <div className="h-[1px] w-6 bg-[#14F195]" />
+                            <div className="h-px w-6 bg-[#14F195]" />
                             <h1 className="text-[#FFD700] text-3xl font-black italic tracking-tighter drop-shadow-[0_0_20px_#B8860B]">MPIG RUN</h1>
-                            <div className="h-[1px] w-6 bg-[#14F195]" />
+                            <div className="h-px w-6 bg-[#14F195]" />
                         </div>
                         <div className="rekt-glass w-full p-8 flex flex-col items-center text-center animate-zoom-in max-w-[320px]">
                             <h2 className="text-[#FFD700] text-lg font-black uppercase tracking-[5px] mb-6">YOU GOT REKT 🔥</h2>

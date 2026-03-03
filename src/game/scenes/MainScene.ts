@@ -330,7 +330,7 @@ export class MainScene extends Phaser.Scene {
     this.game.events.emit('oinks-update', this.totalOinks);
     this.coinParticles.emitParticleAt(mpig.x, mpig.y, 8);
 
-    this.triggerHaptics(30);
+    this.triggerHaptics(20);
     this.playPickupSound();
 
     this.tweens.add({
@@ -447,12 +447,15 @@ export class MainScene extends Phaser.Scene {
     this.mpig.setTint(0xff0000);
     this.particles.stop();
 
-    this.triggerHaptics([80, 50, 100] as any);
-    this.playSound(150, 0.5, 'square', 50);
+    this.triggerHaptics(100);
+    this.playSound(150, 0.4, 'square', 40);
 
     if (this.bgMusic) this.bgMusic.stop();
 
-    this.game.events.emit('game-over', this.score);
+    // Delay event to let physics and camera shake settle - prevents mobile main thread hang
+    this.time.delayedCall(150, () => {
+      this.game.events.emit('game-over', this.score);
+    });
   }
 
   update() {
