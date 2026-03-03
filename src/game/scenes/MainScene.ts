@@ -43,6 +43,7 @@ export class MainScene extends Phaser.Scene {
   private soundEnabled: boolean = true;
   private musicEnabled: boolean = true;
   private bgMusic?: Phaser.Sound.BaseSound;
+  private audioCtx?: AudioContext;
 
   constructor() {
     super('MainScene');
@@ -311,10 +312,22 @@ export class MainScene extends Phaser.Scene {
   }
 
   private collectCoin(mpig: any, coin: any) {
-    coin.destroy();
+    if (coin.data?.get('collected')) return;
+    coin.setData('collected', true);
+
+    // Disable physics immediately to prevent double-hits which can trigger multiple sounds
+    (coin.body as Phaser.Physics.Arcade.Body).enable = false;
+
+    this.tweens.add({
+      targets: coin,
+      scale: 0,
+      alpha: 0,
+      duration: 100,
+      onComplete: () => coin.destroy()
+    });
+
     this.totalOinks += 10;
     this.game.events.emit('oinks-update', this.totalOinks);
-
     this.coinParticles.emitParticleAt(mpig.x, mpig.y, 8);
 
     this.triggerHaptics(30);
@@ -340,25 +353,33 @@ export class MainScene extends Phaser.Scene {
   private playSound(freq: number, duration: number, type: OscillatorType = 'sine', endFreq?: number) {
     if (!this.soundEnabled) return;
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContext) {
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
 
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + duration);
-
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
+      if (!this.audioCtx) {
+        this.audioCtx = new AudioContextClass();
       }
-    } catch (e) { }
+
+      const ctx = this.audioCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + duration);
+
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch (e) {
+      console.warn("Audio synthesis failed", e);
+    }
   }
 
   private triggerHaptics(duration: number = 20) {
