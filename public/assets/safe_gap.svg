@@ -1,0 +1,11 @@
+<svg width="60" height="180" viewBox="0 0 60 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="safe-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <rect x="5" y="10" width="50" height="160" rx="4" fill="rgba(20, 241, 149, 0.1)" stroke="#14F195" stroke-width="2" filter="url(#safe-glow)" stroke-dasharray="10 5" />
+  <!-- Arrows -->
+  <path d="M30 60 L35 70 M30 60 L25 70 M30 110 L35 120 M30 110 L25 120" stroke="#14F195" stroke-width="2" />
+</svg>

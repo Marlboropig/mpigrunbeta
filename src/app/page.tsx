@@ -1,65 +1,95 @@
-import Image from "next/image";
+// src/app/page.tsx
+'use client';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 export default function Home() {
+  const [text, setText] = useState('');
+  const fullText = '> INITIALIZING MPIG TERMINAL...\n> LOADING SOLANA ASSETS...\n> AUTHENTICATION SUCCESSFUL.\n> READY TO BLAST.';
+
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      setText(fullText.slice(0, i));
+      i++;
+      if (i > fullText.length) clearInterval(interval);
+    }, 30);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen flex flex-col items-center justify-center p-6 terminal-frame">
+      <div className="scanline" />
+
+      {/* Cinematic Logo Branding */}
+      <div className="z-10 text-center space-y-12 max-w-2xl animate-fade-in">
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex flex-col gap-1 items-end opacity-50">
+              <div className="h-[2px] w-8 bg-[#14F195]" />
+              <div className="h-[2px] w-6 bg-[#14F195]" />
+            </div>
+            <h1 className="text-[#FFD700] text-6xl md:text-8xl font-black italic tracking-tighter drop-shadow-[0_0_30px_#B8860B]">
+              MPIG RUN
+            </h1>
+            <div className="flex flex-col gap-1 items-start opacity-50">
+              <div className="h-[2px] w-8 bg-[#14F195]" />
+              <div className="h-[2px] w-6 bg-[#14F195]" />
+            </div>
+          </div>
+          <div className="bg-[#14F195]/10 border border-[#14F195]/30 px-4 py-1 rounded-full">
+            <span className="text-[#14F195] text-[10px] font-black tracking-[5px] uppercase">Solana Ecosystem Native</span>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Console Terminal UI */}
+        <div className="bg-black/80 border border-white/5 p-6 rounded-xl font-mono text-left w-full max-w-lg shadow-2xl relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-linear-to-r from-transparent via-[#14F195]/50 to-transparent" />
+          <pre className="text-[#14F195] text-xs leading-relaxed whitespace-pre-wrap">
+            {text}
+            <span className="animate-pulse">_</span>
+          </pre>
         </div>
-      </main>
-    </div>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
+          <Link
+            href="/game"
+            className="group relative px-12 py-5 bg-white overflow-hidden rounded-2xl transition-all hover:scale-105 active:scale-95 w-full sm:w-auto text-center shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
+          >
+            <div className="absolute inset-0 bg-linear-to-b from-yellow-300 via-amber-500 to-amber-600" />
+            <span className="relative z-10 text-black font-black tracking-[5px] uppercase italic text-sm">LAUNCH MISSION</span>
+          </Link>
+
+          <button
+            disabled
+            className="px-8 py-5 bg-white/5 border border-white/10 text-white/20 font-black rounded-2xl cursor-not-allowed w-full sm:w-auto tracking-[3px] text-[10px] uppercase"
+          >
+            PHASE 2 (LOCKED)
+          </button>
+        </div>
+
+        <div className="pt-8 flex items-center justify-center space-x-12 opacity-30">
+          <div className="flex flex-col items-center">
+            <span className="text-[#14F195] font-black text-xl">HIGH</span>
+            <span className="text-white/40 text-[9px] uppercase tracking-[4px]">Performance</span>
+          </div>
+          <div className="w-[1px] h-8 bg-white/10" />
+          <div className="flex flex-col items-center">
+            <span className="text-[#14F195] font-black text-xl">4K</span>
+            <span className="text-white/40 text-[9px] uppercase tracking-[4px]">Assets</span>
+          </div>
+          <div className="w-[1px] h-8 bg-white/10" />
+          <div className="flex flex-col items-center">
+            <span className="text-[#14F195] font-black text-xl">SOL</span>
+            <span className="text-white/40 text-[9px] uppercase tracking-[4px]">Chain</span>
+          </div>
+        </div>
+      </div>
+
+      <footer className="absolute bottom-8 text-[#14F195]/20 text-[9px] font-black tracking-[10px] uppercase">
+        MPIG RUN TERMINAL v1.0.4
+      </footer>
+    </main>
   );
 }

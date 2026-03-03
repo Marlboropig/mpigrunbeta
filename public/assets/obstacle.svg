@@ -1,0 +1,17 @@
+<svg width="60" height="400" viewBox="0 0 60 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="candle-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00FFA3;stop-opacity:1" /> <!-- Solana Green -->
+      <stop offset="100%" style="stop-color:#DC1FFF;stop-opacity:1" /> <!-- Solana Purple -->
+    </linearGradient>
+    <filter id="neon-glow">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="10" y="0" width="40" height="400" rx="4" fill="url(#candle-grad)" filter="url(#neon-glow)" />
+  <rect x="25" y="0" width="10" height="400" fill="rgba(255,255,255,0.2)" />
+</svg>

@@ -1,0 +1,15 @@
+<svg width="61" height="61" viewBox="0 0 61 61" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Body -->
+  <circle cx="30" cy="30" r="25" fill="#FFC0CB" stroke="#FF69B4" stroke-width="2"/>
+  <!-- Space Helmet -->
+  <circle cx="38" cy="28" r="18" fill="rgba(255, 255, 255, 0.3)" stroke="#A020F0" stroke-width="2"/>
+  <!-- Eye -->
+  <circle cx="42" cy="25" r="3" fill="black"/>
+  <!-- Jetpack -->
+  <rect x="5" y="20" width="10" height="20" rx="2" fill="#808080" />
+  <path d="M5 30 L0 35 L5 40 Z" fill="#FFA500" />
+  <!-- Snout -->
+  <ellipse cx="48" cy="35" rx="5" ry="4" fill="#FFB6C1" />
+  <circle cx="46" cy="35" r="1" fill="#FF69B4" />
+  <circle cx="50" cy="35" r="1" fill="#FF69B4" />
+</svg>

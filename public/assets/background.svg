@@ -1,0 +1,22 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#0D0B21" />
+  <!-- Simple Stars -->
+  <circle cx="100" cy="150" r="1" fill="white" opacity="1" />
+  <circle cx="300" cy="50" r="1.5" fill="#9945FF" opacity="0.8" />
+  <circle cx="500" cy="400" r="2" fill="#14F195" opacity="0.6" />
+  <circle cx="700" cy="250" r="1.2" fill="white" opacity="0.9" />
+  <circle cx="200" cy="350" r="1" fill="#9945FF" opacity="0.7" />
+  <circle cx="450" cy="100" r="1.6" fill="#14F195" opacity="0.8" />
+  <circle cx="650" cy="500" r="1.4" fill="white" opacity="0.9" />
+  <circle cx="50" cy="500" r="1.1" fill="white" opacity="0.5" />
+  <circle cx="750" cy="100" r="1.2" fill="#9945FF" opacity="0.4" />
+  <circle cx="400" cy="300" r="0.8" fill="#14F195" opacity="1" />
+  <!-- Neon Dust -->
+  <rect x="0" y="0" width="800" height="600" fill="url(#neon-gradient)" opacity="0.1" />
+  <defs>
+    <radialGradient id="neon-gradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#9945FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0D0B21;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+</svg>
