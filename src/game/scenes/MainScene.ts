@@ -180,6 +180,11 @@ export class MainScene extends Phaser.Scene {
   }
 
   private handleAction() {
+    // Mobile Audio Warmup
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume();
+    }
+
     if (this.state === GameState.IDLE) {
       this.startGame();
     } else if (this.state === GameState.PLAYING) {
@@ -343,11 +348,13 @@ export class MainScene extends Phaser.Scene {
 
   private playPickupSound() {
     if (!this.soundEnabled) return;
-    if (this.cache.audio.exists('sfx-coin')) {
-      this.sound.play('sfx-coin', { volume: 0.6 });
-    } else {
-      this.playSound(800, 0.1, 'sine', 1200);
-    }
+    try {
+      if (this.cache.audio.exists('sfx-coin')) {
+        this.sound.play('sfx-coin', { volume: 0.6 });
+      } else {
+        this.playSound(800, 0.1, 'sine', 1200);
+      }
+    } catch (e) { }
   }
 
   private playSound(freq: number, duration: number, type: OscillatorType = 'sine', endFreq?: number) {
@@ -382,9 +389,13 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
-  private triggerHaptics(duration: number = 20) {
-    if ('vibrate' in navigator) {
-      navigator.vibrate(duration);
+  private triggerHaptics(duration: number | number[] = 20) {
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(duration);
+      }
+    } catch (e) {
+      // Silence haptic errors on unsupported hardware
     }
   }
 
