@@ -29,6 +29,7 @@ export class MainScene extends Phaser.Scene {
   private obstacles!: Phaser.Physics.Arcade.Group;
   private coins!: Phaser.Physics.Arcade.Group;
   private score: number = 0;
+  private distance: number = 0;
   private totalOinks: number = 0;
   private state: GameState = GameState.IDLE;
   private spawnTimer?: Phaser.Time.TimerEvent;
@@ -211,6 +212,7 @@ export class MainScene extends Phaser.Scene {
   private startGame() {
     this.state = GameState.PLAYING;
     this.score = 0;
+    this.distance = 0;
     this.totalOinks = 0;
     this.currentDifficulty = DIFFICULTY_SETTINGS[0];
     (this.mpig.body as Phaser.Physics.Arcade.Body).allowGravity = true;
@@ -335,6 +337,24 @@ export class MainScene extends Phaser.Scene {
     this.game.events.emit('oinks-update', this.totalOinks);
     this.coinParticles.emitParticleAt(mpig.x, mpig.y, 8);
 
+    // Floating +10 Text
+    const floatText = this.add.text(coin.x, coin.y, '+10', {
+      fontFamily: 'Orbitron',
+      fontSize: '24px',
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(100).setFontStyle('900 italic');
+
+    this.tweens.add({
+      targets: floatText,
+      y: floatText.y - 80,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Cubic.out',
+      onComplete: () => floatText.destroy()
+    });
+
     this.triggerHaptics(20);
     this.playPickupSound();
 
@@ -407,11 +427,28 @@ export class MainScene extends Phaser.Scene {
     this.physics.add.overlap(this.mpig, zone, () => {
       zone.destroy();
       if (visual) visual.destroy();
-      this.incrementScore();
+      // Distance is now primary score, but we can play a sound for passing obstacles
+      this.playSound(600, 0.08, 'sine');
     });
 
     if (visual) {
       this.time.delayedCall(10000, () => { if (visual && visual.active) visual.destroy(); });
+    }
+  }
+
+  private checkDifficulty() {
+    const keys = Object.keys(DIFFICULTY_SETTINGS).map(Number).sort((a, b) => b - a);
+    const applicable = keys.find(k => this.score >= k);
+    if (applicable !== undefined && DIFFICULTY_SETTINGS[applicable].level !== this.currentDifficulty.level) {
+      const oldTheme = this.currentDifficulty.theme;
+      this.currentDifficulty = DIFFICULTY_SETTINGS[applicable];
+
+      if (oldTheme !== this.currentDifficulty.theme) {
+        this.game.events.emit('level-up', this.currentDifficulty.theme);
+        this.cameras.main.shake(100, 0.01);
+        this.playSound(300, 0.3, 'sawtooth', 100);
+      }
+      this.resetSpawnTimer();
     }
   }
 
@@ -428,24 +465,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private incrementScore() {
-    if (this.state !== GameState.PLAYING) return;
-    this.score++;
-    this.game.events.emit('score-update', this.score);
-    this.playSound(600, 0.08, 'sine');
-
-    const keys = Object.keys(DIFFICULTY_SETTINGS).map(Number).sort((a, b) => b - a);
-    const applicable = keys.find(k => this.score >= k);
-    if (applicable !== undefined && DIFFICULTY_SETTINGS[applicable].level !== this.currentDifficulty.level) {
-      const oldTheme = this.currentDifficulty.theme;
-      this.currentDifficulty = DIFFICULTY_SETTINGS[applicable];
-
-      if (oldTheme !== this.currentDifficulty.theme) {
-        this.game.events.emit('level-up', this.currentDifficulty.theme);
-        this.cameras.main.shake(100, 0.01);
-        this.playSound(300, 0.3, 'sawtooth', 100);
-      }
-      this.resetSpawnTimer();
-    }
+    // This is now handled in update() based on distance
   }
 
   private handleGameOver() {
@@ -469,8 +489,20 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  update() {
+  update(time: number, delta: number) {
     if (this.state === GameState.PLAYING) {
+      // 1. Update Distance-based Score
+      // Increment distance based on speed (pixels/sec)
+      this.distance += (this.currentDifficulty.speed * delta) / 1000;
+
+      // Calculate score based on distance (1 score unit per 100 pixels)
+      const newScore = Math.floor(this.distance / 100);
+      if (newScore !== this.score) {
+        this.score = newScore;
+        this.game.events.emit('score-update', this.score);
+        this.checkDifficulty();
+      }
+
       this.background.tilePositionX += this.currentDifficulty.speed * 0.005;
 
       if ((this.mpig.body as Phaser.Physics.Arcade.Body).velocity.y > 0 && this.mpig.angle < 25) {

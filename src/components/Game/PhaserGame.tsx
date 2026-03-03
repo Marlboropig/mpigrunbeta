@@ -130,10 +130,16 @@ export default function PhaserGame() {
                             <span className="text-[9px] uppercase font-black text-white tracking-[2px] hidden xs:inline">MPIG RUN</span>
                         </div>
 
-                        <div className="flex flex-col items-center">
-                            <span className="text-[8px] text-[#14F195] font-black tracking-[4px] uppercase mb-1 drop-shadow-[0_0_10px_#14F195]">Oinks</span>
-                            <div className="bg-black/90 border border-[#14F195]/20 rounded-2xl px-4 py-1.5 flex items-center gap-2 shadow-[0_0_20px_rgba(20,241,149,0.1)]">
-                                <span className="text-xl font-black text-white tabular-nums tracking-widest leading-none">{oinks.toString().padStart(5, '0')}</span>
+                        <div className="flex items-center gap-4">
+                            <div className="flex flex-col items-end">
+                                <span className="text-[8px] text-[#14F195] font-black tracking-[2px] uppercase opacity-60">Oinks</span>
+                                <span className="text-sm font-black text-[#14F195] tabular-nums">{oinks}</span>
+                            </div>
+                            <div className="flex flex-col items-center scale-110">
+                                <span className="text-[8px] text-[#FFD700] font-black tracking-[4px] uppercase mb-1 drop-shadow-[0_0_10px_#B8860B]">DISTANCE</span>
+                                <div className="bg-black/90 border border-[#FFD700]/20 rounded-2xl px-5 py-2 flex items-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.1)]">
+                                    <span className="text-2xl font-black text-white tabular-nums tracking-widest leading-none">{score.toString().padStart(5, '0')}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -213,9 +219,17 @@ export default function PhaserGame() {
                         </div>
                         <div className="rekt-glass w-full p-8 flex flex-col items-center text-center animate-zoom-in max-w-[320px]">
                             <h2 className="text-[#FFD700] text-lg font-black uppercase tracking-[5px] mb-6">YOU GOT REKT 🔥</h2>
-                            <div className="text-white text-2xl font-bold mb-8 flex items-baseline gap-2">
-                                <span className="text-[10px] uppercase tracking-widest opacity-40 text-white">Score:</span>
-                                <span className="text-4xl tabular-nums">{oinks}</span>
+
+                            <div className="w-full flex justify-between mb-8 px-4">
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[8px] uppercase tracking-widest opacity-40 text-white mb-1">Score</span>
+                                    <span className="text-3xl font-black tabular-nums text-white">{score}</span>
+                                </div>
+                                <div className="w-px h-10 bg-white/10" />
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[8px] uppercase tracking-widest opacity-40 text-white mb-1">Oinks</span>
+                                    <span className="text-3xl font-black tabular-nums text-[#14F195]">{oinks}</span>
+                                </div>
                             </div>
                             <div className="flex flex-col w-full gap-3">
                                 <button onClick={handleRestart} className="pill-button-gold w-full h-12 text-xs tracking-[4px]">PLAY AGAIN</button>
