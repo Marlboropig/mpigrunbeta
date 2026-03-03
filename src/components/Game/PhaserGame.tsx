@@ -211,30 +211,52 @@ export default function PhaserGame() {
 
                 {/* Game Over UI */}
                 {gameState === GameState.GAME_OVER && (
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center z-[200] animate-fade-in font-['var(--font-orbitron)'] p-6 pointer-events-auto">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[12px] flex flex-col items-center justify-center z-[200] animate-fade-in font-['var(--font-orbitron)'] p-6 pointer-events-auto">
                         <div className="flex items-center gap-3 mb-8">
-                            <div className="h-px w-6 bg-[#14F195]" />
-                            <h1 className="text-[#FFD700] text-3xl font-black italic tracking-tighter drop-shadow-[0_0_20px_#B8860B]">MPIG RUN</h1>
-                            <div className="h-px w-6 bg-[#14F195]" />
+                            <div className="h-px w-6 bg-[#14F195] opacity-50" />
+                            <h1 className="text-[#FFD700] text-3xl font-black italic tracking-tighter drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]">MPIG RUN</h1>
+                            <div className="h-px w-6 bg-[#14F195] opacity-50" />
                         </div>
-                        <div className="rekt-glass w-full p-8 flex flex-col items-center text-center animate-zoom-in max-w-[320px]">
-                            <h2 className="text-[#FFD700] text-lg font-black uppercase tracking-[5px] mb-6">YOU GOT REKT 🔥</h2>
 
-                            <div className="w-full flex justify-between mb-8 px-4">
+                        {/* Liquid Glass Container */}
+                        <div className="relative w-full p-8 flex flex-col items-center text-center animate-zoom-in max-w-[320px] 
+            bg-white/[0.03] backdrop-blur-2xl rounded-[2.5rem] 
+            border border-white/10 border-t-white/20 border-l-white/20
+            shadow-[0_20px_50px_rgba(0,0,0,0.3),inset_0_0_20px_rgba(255,255,255,0.05)]
+            before:content-[''] before:absolute before:inset-0 before:rounded-[2.5rem] before:bg-gradient-to-br before:from-white/10 before:to-transparent before:pointer-events-none">
+
+                            <h2 className="text-[#FFD700] text-lg font-black uppercase tracking-[5px] mb-6 drop-shadow-md">YOU GOT REKT 🔥</h2>
+
+                            <div className="w-full flex justify-between mb-8 px-4 relative z-10">
                                 <div className="flex flex-col items-center">
-                                    <span className="text-[8px] uppercase tracking-widest opacity-40 text-white mb-1">Score</span>
-                                    <span className="text-3xl font-black tabular-nums text-white">{score}</span>
+                                    <span className="text-[8px] uppercase tracking-widest opacity-60 text-white mb-1">Score</span>
+                                    <span className="text-3xl font-black tabular-nums text-white drop-shadow-sm">{score}</span>
                                 </div>
-                                <div className="w-px h-10 bg-white/10" />
+                                <div className="w-px h-10 bg-white/10 self-center" />
                                 <div className="flex flex-col items-center">
-                                    <span className="text-[8px] uppercase tracking-widest opacity-40 text-white mb-1">Oinks</span>
-                                    <span className="text-3xl font-black tabular-nums text-[#14F195]">{oinks}</span>
+                                    <span className="text-[8px] uppercase tracking-widest opacity-60 text-white mb-1">Oinks</span>
+                                    <span className="text-3xl font-black tabular-nums text-[#14F195] drop-shadow-[0_0_10px_rgba(20,241,149,0.3)]">{oinks}</span>
                                 </div>
                             </div>
-                            <div className="flex flex-col w-full gap-3">
-                                <button onClick={handleRestart} className="pill-button-gold w-full h-12 text-xs tracking-[4px]">PLAY AGAIN</button>
-                                <button className="pill-button-outline-green w-full h-12 text-[9px] tracking-[3px]">Share Achievement</button>
-                                <Link href="/" className="mt-4 text-white/20 hover:text-white text-[8px] uppercase font-black tracking-[4px] transition-all">Exit Session</Link>
+
+                            <div className="flex flex-col w-full gap-3 relative z-10">
+                                <button
+                                    onClick={handleRestart}
+                                    className="pill-button-gold w-full h-12 text-xs tracking-[4px] hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg"
+                                >
+                                    PLAY AGAIN
+                                </button>
+                                <button
+                                    className="pill-button-outline-green w-full h-12 text-[9px] tracking-[3px] bg-white/5 backdrop-blur-sm border border-white/10"
+                                >
+                                    Share Achievement
+                                </button>
+                                <Link
+                                    href="/"
+                                    className="mt-4 text-white/40 hover:text-white text-[8px] uppercase font-black tracking-[4px] transition-all"
+                                >
+                                    Exit Session
+                                </Link>
                             </div>
                         </div>
                     </div>
