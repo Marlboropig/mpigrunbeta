@@ -52,11 +52,20 @@ export class MainScene extends Phaser.Scene {
 
   preload() {
     this.load.image('mpig', '/assets/mpig.png');
-    this.load.image('background', '/assets/background.png');
     this.load.image('rekt_zone', '/assets/rekt_zone.svg');
     this.load.image('safe_gap', '/assets/safe_gap.svg');
     this.load.image('sol_shape', '/assets/sol_particle.svg');
+
+    // Crypto Obstacles
+    this.load.image('red_candle', '/assets/red_candle.svg');
+    this.load.image('bomb', '/assets/bomb.svg');
+    this.load.image('rug_trap', '/assets/rug_trap.svg');
+
+    // Crypto Rewards
     this.load.image('coin', '/assets/coin.svg');
+    this.load.image('solana_logo', '/assets/solana_logo.svg');
+    this.load.image('green_candle', '/assets/green_candle.svg');
+    this.load.image('mpig_logo', '/assets/mpig.png'); // Using original mpig as rare reward
 
     // Load User Provided Audio
     this.load.audio('bgm', '/assets/audio/bgm.mp3');
@@ -268,44 +277,59 @@ export class MainScene extends Phaser.Scene {
 
     const minClearance = 150;
 
+    const obsTypes = ['red_candle', 'bomb', 'rug_trap'];
+    const obsType = obsTypes[Phaser.Math.Between(0, obsTypes.length - 1)];
+
     if (pattern === 0) {
       const h = Phaser.Math.Between(minClearance, height - 350);
-      const obs = this.obstacles.create(width + 100, height - h, 'rekt_zone').setOrigin(0.5, 0);
+      const obs = this.obstacles.create(width + 100, height - h, obsType).setOrigin(0.5, 0);
+
+      if (obsType === 'bomb') obs.setScale(1.2).setCircle(obs.width * 0.4);
+      else if (obsType === 'rug_trap') obs.setScale(1.5).setBodySize(obs.width, obs.height);
+      else obs.setDisplaySize(30, h + 200).setBodySize(obs.width, obs.height);
+
       this.applyTheme(obs, theme);
       this.createScoreZone(width + 100, speed);
 
-      // High density spawn
-      this.spawnCoinRandomly(width + 100, height - h - 100, speed);
-      // Riskier coin right at the edge of the pillar
-      this.spawnCoinRandomly(width + 150, height - h - 40, speed, true);
+      this.spawnRewardRandomly(width + 100, height - h - 100, speed);
+      this.spawnRewardRandomly(width + 150, height - h - 40, speed, true);
     }
     else if (pattern === 1) {
       const h = Phaser.Math.Between(minClearance, height - 350);
-      const obs = this.obstacles.create(width + 100, h, 'rekt_zone').setOrigin(0.5, 1);
+      const obs = this.obstacles.create(width + 100, h, obsType).setOrigin(0.5, 1);
       obs.setFlipY(true);
+
+      if (obsType === 'bomb') obs.setScale(1.2).setCircle(obs.width * 0.4);
+      else if (obsType === 'rug_trap') obs.setScale(1.5).setBodySize(obs.width, obs.height);
+      else obs.setDisplaySize(30, h + 200).setBodySize(obs.width, obs.height);
+
       this.applyTheme(obs, theme);
       this.createScoreZone(width + 100, speed);
 
-      this.spawnCoinRandomly(width + 100, h + 100, speed);
-      // Riskier coin right at the edge of the top pillar
-      this.spawnCoinRandomly(width + 150, h + 40, speed, true);
+      this.spawnRewardRandomly(width + 100, h + 100, speed);
+      this.spawnRewardRandomly(width + 150, h + 40, speed, true);
     }
     else {
       const topH = Phaser.Math.Between(150, height - gap - 150);
-      const top = this.obstacles.create(width + 100, topH, 'rekt_zone').setOrigin(0.5, 1);
+      const topT = obsTypes[Phaser.Math.Between(0, obsTypes.length - 1)];
+      const botT = obsTypes[Phaser.Math.Between(0, obsTypes.length - 1)];
+
+      const top = this.obstacles.create(width + 100, topH, topT).setOrigin(0.5, 1);
       top.setFlipY(true);
-      const bottom = this.obstacles.create(width + 100, topH + gap, 'rekt_zone').setOrigin(0.5, 0);
+      const bottom = this.obstacles.create(width + 100, topH + gap, botT).setOrigin(0.5, 0);
+
+      if (topT === 'red_candle') top.setDisplaySize(30, topH + 200); else top.setScale(1.2);
+      if (botT === 'red_candle') bottom.setDisplaySize(30, height - (topH + gap) + 200); else bottom.setScale(1.2);
 
       this.applyTheme(top, theme);
       this.applyTheme(bottom, theme);
 
-      const safeGap = this.add.image(width + 100, topH + gap / 2, 'safe_gap').setDisplaySize(60, gap).setAlpha(0.4);
+      const safeGap = this.add.image(width + 100, topH + gap / 2, 'safe_gap').setDisplaySize(60, gap).setAlpha(0.2);
       this.createScoreZone(width + 100, speed, safeGap);
 
-      // Spawn a trail/cluster in the gap
-      this.spawnCoinRandomly(width + 70, topH + gap / 2, speed);
-      this.spawnCoinRandomly(width + 130, topH + gap / 2 - 40, speed, true); // Dangerous Top
-      this.spawnCoinRandomly(width + 130, topH + gap / 2 + 40, speed, true); // Dangerous Bottom
+      this.spawnRewardRandomly(width + 70, topH + gap / 2, speed);
+      this.spawnRewardRandomly(width + 130, topH + gap / 2 - 40, speed, true);
+      this.spawnRewardRandomly(width + 130, topH + gap / 2 + 40, speed, true);
     }
 
     this.obstacles.getChildren().forEach((child: any) => {
@@ -313,23 +337,30 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  private spawnCoinRandomly(x: number, y: number, speed: number, highRisk: boolean = false) {
-    // Increased base probability (70% instead of 50%)
+  private spawnRewardRandomly(x: number, y: number, speed: number, highRisk: boolean = false) {
     const chance = highRisk ? 8 : 7;
     if (Phaser.Math.Between(0, 10) < chance) {
-      const coin = this.coins.create(x, y, 'coin').setScale(highRisk ? 1.0 : 0.8);
+      const rewards = [
+        { key: 'coin', val: 10, scale: 0.8 },
+        { key: 'solana_logo', val: 25, scale: 0.5 },
+        { key: 'green_candle', val: 15, scale: 0.6 },
+        { key: 'mpig_logo', val: 50, scale: 0.05 },
+      ];
+
+      const r = rewards[Phaser.Math.Between(0, rewards.length - 1)];
+      const reward = this.coins.create(x, y, r.key).setScale(r.scale);
+      reward.setData('value', r.val);
 
       if (highRisk) {
-        // High risk coins glow or look more enticing
-        coin.setTint(0xFFFF00);
+        reward.setTint(0xFFFF00);
       }
 
-      (coin.body as Phaser.Physics.Arcade.Body).velocity.x = -speed;
-      (coin.body as Phaser.Physics.Arcade.Body).setCircle(coin.width * 0.4); // Tight hitbox
+      (reward.body as Phaser.Physics.Arcade.Body).velocity.x = -speed;
+      (reward.body as Phaser.Physics.Arcade.Body).setCircle(reward.width * 0.4);
 
       this.tweens.add({
-        targets: coin,
-        scaleX: 0.1,
+        targets: reward,
+        scaleX: r.scale * 0.5,
         duration: 500,
         yoyo: true,
         repeat: -1,
@@ -353,15 +384,16 @@ export class MainScene extends Phaser.Scene {
       onComplete: () => coin.destroy()
     });
 
-    this.totalOinks += 10;
+    const val = coin.getData('value') || 10;
+    this.totalOinks += val;
     this.game.events.emit('oinks-update', this.totalOinks);
     this.coinParticles.emitParticleAt(mpig.x, mpig.y, 8);
 
-    // Floating +10 Text
-    const floatText = this.add.text(coin.x, coin.y, '+10', {
+    // Floating Reward Text
+    const floatText = this.add.text(coin.x, coin.y, `+${val}`, {
       fontFamily: 'Orbitron',
       fontSize: '24px',
-      color: '#FFD700',
+      color: val > 20 ? '#14F195' : '#FFD700',
       stroke: '#000000',
       strokeThickness: 4,
     }).setOrigin(0.5).setDepth(100).setFontStyle('900 italic');

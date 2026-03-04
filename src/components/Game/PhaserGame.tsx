@@ -115,6 +115,12 @@ export default function PhaserGame() {
         if (gameRef.current) gameRef.current.events.emit('toggle-music', next);
     };
 
+    const handleShare = () => {
+        const text = `I just scored ${score} in the $MPIG game 🐷🚀\nCan you beat my score?\n\nPlay: mpigg.xyz\n\nCA: Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump`;
+        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank');
+    };
+
     return (
         <div className="relative w-full h-dvh flex items-center justify-center overflow-hidden bg-black">
             {/* The Actual Canvas Wrapper */}
@@ -202,9 +208,15 @@ export default function PhaserGame() {
                 {/* Start UI */}
                 {gameState === GameState.IDLE && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 font-['var(--font-orbitron)']">
-                        <div className="animate-pulse text-center space-y-4">
-                            <h2 className="text-white text-4xl font-black tracking-tighter uppercase italic">TAP TO BLAST</h2>
-                            <p className="text-[#14F195] text-[9px] font-black uppercase tracking-[8px] drop-shadow-[0_0_10px_#14F195]">STACK SOLANA</p>
+                        <div className="animate-fade-in text-center space-y-4">
+                            <h2 className="text-white text-5xl font-black tracking-tighter uppercase italic drop-shadow-[0_0_20px_white]">TAP TO BLAST</h2>
+                            <div className="flex flex-col gap-1 items-center">
+                                <p className="text-[#14F195] text-[10px] font-black uppercase tracking-[8px] drop-shadow-[0_0_10px_#14F195]">DODGE CANDLES</p>
+                                <p className="text-[#FFD700] text-[8px] font-black uppercase tracking-[4px]">STACK $MPIG</p>
+                            </div>
+                            <div className="pt-8 opacity-40">
+                                <p className="text-white text-[6px] uppercase tracking-[3px]">CA: Ff7F96...pump</p>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -227,16 +239,21 @@ export default function PhaserGame() {
 
                             <h2 className="text-[#FFD700] text-lg font-black uppercase tracking-[5px] mb-6 drop-shadow-md">YOU GOT REKT 🔥</h2>
 
-                            <div className="w-full flex justify-between mb-8 px-4 relative z-10">
+                            <div className="w-full grid grid-cols-3 gap-2 mb-8 relative z-10 px-2">
                                 <div className="flex flex-col items-center">
-                                    <span className="text-[8px] uppercase tracking-widest opacity-60 text-white mb-1">Score</span>
-                                    <span className="text-3xl font-black tabular-nums text-white drop-shadow-sm">{score}</span>
+                                    <span className="text-[7px] uppercase tracking-widest opacity-60 text-white mb-1">Score</span>
+                                    <span className="text-2xl font-black tabular-nums text-white drop-shadow-sm">{score}</span>
                                 </div>
-                                <div className="w-px h-10 bg-white/10 self-center" />
+                                <div className="w-px h-8 bg-white/10 self-center justify-self-center" />
                                 <div className="flex flex-col items-center">
-                                    <span className="text-[8px] uppercase tracking-widest opacity-60 text-white mb-1">Oinks</span>
-                                    <span className="text-3xl font-black tabular-nums text-[#14F195] drop-shadow-[0_0_10px_rgba(20,241,149,0.3)]">{oinks}</span>
+                                    <span className="text-[7px] uppercase tracking-widest opacity-60 text-white mb-1">Best</span>
+                                    <span className="text-2xl font-black tabular-nums text-[#FFD700] drop-shadow-sm">{highScore}</span>
                                 </div>
+                            </div>
+
+                            <div className="w-full bg-white/5 rounded-2xl py-3 px-4 mb-6 border border-white/5">
+                                <span className="text-[7px] uppercase tracking-[3px] text-white/40 block mb-1">Collected Oinks</span>
+                                <span className="text-2xl font-black text-[#14F195] drop-shadow-[0_0_10px_rgba(20,241,149,0.3)]">{oinks}</span>
                             </div>
 
                             <div className="flex flex-col w-full gap-3 relative z-10">
@@ -247,9 +264,22 @@ export default function PhaserGame() {
                                     PLAY AGAIN
                                 </button>
                                 <button
-                                    className="pill-button-outline-green w-full h-12 text-[9px] tracking-[3px] bg-white/5 backdrop-blur-sm border border-white/10"
+                                    onClick={handleShare}
+                                    className="pill-button-outline-green w-full h-12 text-[9px] tracking-[3px] bg-white/5 backdrop-blur-sm border border-white/10 group flex items-center justify-center gap-2"
                                 >
-                                    Share Achievement
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                    </svg>
+                                    SHARE ON X
+                                </button>
+                                <button
+                                    className="text-[7px] text-white/20 uppercase tracking-[2px] mt-1"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText("Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump");
+                                        alert("CA Copied!");
+                                    }}
+                                >
+                                    Copy CA: Ff7...pump
                                 </button>
                                 <Link
                                     href="/"

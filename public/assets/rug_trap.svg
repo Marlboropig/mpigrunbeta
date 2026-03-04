@@ -1,0 +1,5 @@
+<svg width="60" height="20" viewBox="0 0 60 20" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0 10 Q15 0 30 10 T60 10" fill="none" stroke="#9945FF" stroke-width="4" stroke-linecap="round" />
+  <rect x="0" y="15" width="60" height="5" fill="#14F195" opacity="0.5" />
+  <text x="30" y="14" font-family="Arial" font-size="6" fill="white" text-anchor="middle" font-weight="bold">RUGGED</text>
+</svg>

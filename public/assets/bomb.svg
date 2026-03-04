@@ -1,0 +1,9 @@
+<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="20" cy="22" r="15" fill="#1A1A1A" stroke="#333" stroke-width="2" />
+  <path d="M25 10 Q30 5 35 10" fill="none" stroke="#FFD700" stroke-width="2" stroke-linecap="round">
+    <animate attributeName="stroke-dasharray" values="1,10;10,1" dur="0.2s" repeatCount="indefinite" />
+  </path>
+  <circle cx="35" cy="10" r="2" fill="#FF4B4B">
+    <animate attributeName="opacity" values="1;0;1" dur="0.1s" repeatCount="indefinite" />
+  </circle>
+</svg>
