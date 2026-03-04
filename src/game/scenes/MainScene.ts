@@ -52,6 +52,7 @@ export class MainScene extends Phaser.Scene {
 
   preload() {
     this.load.image('mpig', '/assets/mpig.png');
+    this.load.image('background', '/assets/background.png');
     this.load.image('rekt_zone', '/assets/rekt_zone.svg');
     this.load.image('safe_gap', '/assets/safe_gap.svg');
     this.load.image('sol_shape', '/assets/sol_particle.svg');
@@ -79,9 +80,7 @@ export class MainScene extends Phaser.Scene {
 
     // 1. Background
     this.background = this.add.tileSprite(width / 2, height / 2, width, height, 'background');
-    this.background.setDisplaySize(width, height).setAlpha(0.8);
-
-    this.createFloatingShapes();
+    this.background.setDisplaySize(width, height).setAlpha(1.0);
 
     // 2. Character Trail
     this.particles = this.add.particles(0, 0, 'sol_shape', {
