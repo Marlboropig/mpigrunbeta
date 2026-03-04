@@ -115,6 +115,12 @@ export default function PhaserGame() {
         if (gameRef.current) gameRef.current.events.emit('toggle-music', next);
     };
 
+    const handleActionInPhaser = () => {
+        if (gameRef.current) {
+            gameRef.current.events.emit('request-action');
+        }
+    };
+
     const handleShare = () => {
         const text = `I just scored ${score} in the $MPIG game 🐷🚀\nCan you beat my score?\n\nPlay: mpigg.xyz\n\nCA: Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump`;
         const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
@@ -207,15 +213,30 @@ export default function PhaserGame() {
 
                 {/* Start UI */}
                 {gameState === GameState.IDLE && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 font-['var(--font-orbitron)']">
-                        <div className="animate-fade-in text-center space-y-4">
-                            <h2 className="text-white text-5xl font-black tracking-tighter uppercase italic drop-shadow-[0_0_20px_white]">TAP TO BLAST</h2>
-                            <div className="flex flex-col gap-1 items-center">
-                                <p className="text-[#14F195] text-[10px] font-black uppercase tracking-[8px] drop-shadow-[0_0_10px_#14F195]">DODGE CANDLES</p>
-                                <p className="text-[#FFD700] text-[8px] font-black uppercase tracking-[4px]">STACK $MPIG</p>
-                            </div>
-                            <div className="pt-8 opacity-40">
-                                <p className="text-white text-[6px] uppercase tracking-[3px]">CA: Ff7F96...pump</p>
+                    <div className="absolute inset-0 z-[150] font-['var(--font-orbitron)'] pointer-events-auto">
+                        <img
+                            src="/assets/front cover.png"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            alt="Front Cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center">
+                            <div className="animate-fade-in text-center space-y-6 flex flex-col items-center">
+                                <h2 className="text-white text-5xl font-black tracking-tighter uppercase italic drop-shadow-[0_0_20px_white]">
+                                    TAP TO BLAST
+                                </h2>
+                                <button
+                                    onClick={() => handleActionInPhaser()}
+                                    className="pill-button-gold px-12 h-14 text-sm tracking-[6px] hover:scale-110 transition-transform active:scale-95 shadow-[0_0_30px_rgba(255,215,0,0.4)] pointer-events-auto"
+                                >
+                                    START MISSION
+                                </button>
+                                <div className="flex flex-col gap-1 items-center pt-4">
+                                    <p className="text-[#14F195] text-[10px] font-black uppercase tracking-[8px] drop-shadow-[0_0_10px_#14F195]">DODGE CANDLES</p>
+                                    <p className="text-[#FFD700] text-[8px] font-black uppercase tracking-[4px]">STACK $MPIG</p>
+                                </div>
+                                <div className="pt-8 opacity-40">
+                                    <p className="text-white text-[6px] uppercase tracking-[3px]">CA: Ff7F96...pump</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -223,70 +244,76 @@ export default function PhaserGame() {
 
                 {/* Game Over UI */}
                 {gameState === GameState.GAME_OVER && (
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[12px] flex flex-col items-center justify-center z-[200] animate-fade-in font-['var(--font-orbitron)'] p-6 pointer-events-auto">
-                        <div className="flex items-center gap-3 mb-8">
-                            <div className="h-px w-6 bg-[#14F195] opacity-50" />
-                            <h1 className="text-[#FFD700] text-3xl font-black italic tracking-tighter drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]">MPIG RUN</h1>
-                            <div className="h-px w-6 bg-[#14F195] opacity-50" />
-                        </div>
-
-                        {/* Liquid Glass Container */}
-                        <div className="relative w-full p-8 flex flex-col items-center text-center animate-zoom-in max-w-[320px] 
-            bg-white/[0.03] backdrop-blur-2xl rounded-[2.5rem] 
-            border border-white/10 border-t-white/20 border-l-white/20
-            shadow-[0_20px_50px_rgba(0,0,0,0.3),inset_0_0_20px_rgba(255,255,255,0.05)]
-            before:content-[''] before:absolute before:inset-0 before:rounded-[2.5rem] before:bg-gradient-to-br before:from-white/10 before:to-transparent before:pointer-events-none">
-
-                            <h2 className="text-[#FFD700] text-lg font-black uppercase tracking-[5px] mb-6 drop-shadow-md">YOU GOT REKT 🔥</h2>
-
-                            <div className="w-full grid grid-cols-3 gap-2 mb-8 relative z-10 px-2">
-                                <div className="flex flex-col items-center">
-                                    <span className="text-[7px] uppercase tracking-widest opacity-60 text-white mb-1">Score</span>
-                                    <span className="text-2xl font-black tabular-nums text-white drop-shadow-sm">{score}</span>
-                                </div>
-                                <div className="w-px h-8 bg-white/10 self-center justify-self-center" />
-                                <div className="flex flex-col items-center">
-                                    <span className="text-[7px] uppercase tracking-widest opacity-60 text-white mb-1">Best</span>
-                                    <span className="text-2xl font-black tabular-nums text-[#FFD700] drop-shadow-sm">{highScore}</span>
-                                </div>
+                    <div className="absolute inset-0 z-[200] animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto overflow-hidden">
+                        <img
+                            src="/assets/game over.png"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            alt="Game Over"
+                        />
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[4px] flex flex-col items-center justify-center p-6">
+                            <div className="flex items-center gap-3 mb-8 animate-slide-in-up">
+                                <div className="h-px w-6 bg-[#14F195] opacity-50" />
+                                <h1 className="text-[#FFD700] text-3xl font-black italic tracking-tighter drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]">MPIG RUN</h1>
+                                <div className="h-px w-6 bg-[#14F195] opacity-50" />
                             </div>
 
-                            <div className="w-full bg-white/5 rounded-2xl py-3 px-4 mb-6 border border-white/5">
-                                <span className="text-[7px] uppercase tracking-[3px] text-white/40 block mb-1">Collected Oinks</span>
-                                <span className="text-2xl font-black text-[#14F195] drop-shadow-[0_0_10px_rgba(20,241,149,0.3)]">{oinks}</span>
-                            </div>
+                            {/* Liquid Glass Container */}
+                            <div className="relative w-full p-8 flex flex-col items-center text-center animate-zoom-in max-w-[340px] 
+                bg-black/60 backdrop-blur-2xl rounded-[2.5rem] 
+                border border-white/10 border-t-white/20 border-l-white/20
+                shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(255,255,255,0.05)]">
 
-                            <div className="flex flex-col w-full gap-3 relative z-10">
-                                <button
-                                    onClick={handleRestart}
-                                    className="pill-button-gold w-full h-12 text-xs tracking-[4px] hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg"
-                                >
-                                    PLAY AGAIN
-                                </button>
-                                <button
-                                    onClick={handleShare}
-                                    className="pill-button-outline-green w-full h-12 text-[9px] tracking-[3px] bg-white/5 backdrop-blur-sm border border-white/10 group flex items-center justify-center gap-2"
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                                    </svg>
-                                    SHARE ON X
-                                </button>
-                                <button
-                                    className="text-[7px] text-white/20 uppercase tracking-[2px] mt-1"
-                                    onClick={() => {
-                                        navigator.clipboard.writeText("Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump");
-                                        alert("CA Copied!");
-                                    }}
-                                >
-                                    Copy CA: Ff7...pump
-                                </button>
-                                <Link
-                                    href="/"
-                                    className="mt-4 text-white/40 hover:text-white text-[8px] uppercase font-black tracking-[4px] transition-all"
-                                >
-                                    Exit Session
-                                </Link>
+                                <h2 className="text-[#FFD700] text-lg font-black uppercase tracking-[5px] mb-6 drop-shadow-md">MISSION FAILED 🔥</h2>
+
+                                <div className="w-full grid grid-cols-3 gap-2 mb-8 relative z-10 px-2 font-mono">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[7px] uppercase tracking-widest opacity-60 text-white mb-1">Score</span>
+                                        <span className="text-2xl font-black tabular-nums text-white drop-shadow-sm">{score}</span>
+                                    </div>
+                                    <div className="w-px h-8 bg-white/10 self-center justify-self-center" />
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[7px] uppercase tracking-widest opacity-60 text-white mb-1">Best</span>
+                                        <span className="text-2xl font-black tabular-nums text-[#FFD700] drop-shadow-sm">{highScore}</span>
+                                    </div>
+                                </div>
+
+                                <div className="w-full bg-white/5 rounded-2xl py-3 px-4 mb-6 border border-white/5">
+                                    <span className="text-[7px] uppercase tracking-[3px] text-white/40 block mb-1">Collected Oinks</span>
+                                    <span className="text-2xl font-black text-[#14F195] drop-shadow-[0_0_10px_rgba(20,241,149,0.3)]">{oinks}</span>
+                                </div>
+
+                                <div className="flex flex-col w-full gap-3 relative z-10">
+                                    <button
+                                        onClick={handleRestart}
+                                        className="pill-button-gold w-full h-12 text-xs tracking-[4px] hover:scale-[1.05] transition-all active:scale-95 shadow-lg"
+                                    >
+                                        RE-TRY MISSION
+                                    </button>
+                                    <button
+                                        onClick={handleShare}
+                                        className="pill-button-outline-green w-full h-12 text-[9px] tracking-[3px] bg-[#1d9bf0]/10 border-[#1d9bf0] text-[#1d9bf0] hover:bg-[#1d9bf0]/20 flex items-center justify-center gap-2 group transition-all"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                        </svg>
+                                        SHARE TO X
+                                    </button>
+                                    <button
+                                        className="text-[7px] text-white/20 uppercase tracking-[2px] mt-1 hover:text-white transition-colors"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText("Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump");
+                                            alert("CA Copied!");
+                                        }}
+                                    >
+                                        CA: Ff7...pump (COPY)
+                                    </button>
+                                    <Link
+                                        href="/"
+                                        className="mt-4 text-white/30 hover:text-white text-[8px] uppercase font-black tracking-[4px] transition-all"
+                                    >
+                                        Exit Session
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     </div>

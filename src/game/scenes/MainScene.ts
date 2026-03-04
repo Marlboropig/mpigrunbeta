@@ -140,8 +140,12 @@ export class MainScene extends Phaser.Scene {
     this.game.events.off('toggle-music');
     this.game.events.off('request-pause');
     this.game.events.off('request-restart');
+    this.game.events.off('request-action');
 
     // Event Listeners from React
+    this.game.events.on('request-action', () => {
+      this.handleAction();
+    });
     this.game.events.on('toggle-sound', (val: boolean) => { this.soundEnabled = val; });
     this.game.events.on('toggle-music', (val: boolean) => {
       this.musicEnabled = val;
