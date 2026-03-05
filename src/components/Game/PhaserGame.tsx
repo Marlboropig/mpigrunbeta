@@ -122,7 +122,7 @@ export default function PhaserGame() {
     };
 
     const handleShare = () => {
-        const text = `I just scored ${score} in the $MPIG game 🐷🚀\nCan you beat my score?\n\nPlay: mpigg.xyz\n\nCA: Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump`;
+        const text = `I just scored ${score} in MPIG RUN 🐷🔥\nThink you can beat my score?\n\nPlay: https://mpigg.xyz\n\n$MPIG`;
         const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
         window.open(url, '_blank');
     };
@@ -135,35 +135,43 @@ export default function PhaserGame() {
                 {/* Main HUD Overlay - Contained inside the aspect ratio box */}
                 <div className="absolute inset-0 pointer-events-none flex flex-col font-['var(--font-orbitron)'] z-10">
 
-                    {/* Top HUD */}
-                    <header className="p-4 flex items-center justify-between w-full pointer-events-auto">
-                        <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 shadow-lg">
-                            <img src="/assets/mpig.png" className="w-5 h-5 object-contain" alt="mpig" />
-                            <span className="text-[9px] uppercase font-black text-white tracking-[2px] hidden xs:inline">MPIG RUN</span>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <div className="flex flex-col items-end">
-                                <span className="text-[8px] text-[#14F195] font-black tracking-[2px] uppercase opacity-60">Oinks</span>
-                                <span className="text-sm font-black text-[#14F195] tabular-nums">{oinks}</span>
+                    {/* Top HUD - Mobile Optimized */}
+                    <header className="px-4 py-2 pt-[calc(env(safe-area-inset-top,0px)+1rem)] flex items-start justify-between w-full pointer-events-auto">
+                        {/* Score & Oinks Top-Left */}
+                        <div className="flex flex-col gap-2">
+                            <div className="bg-black/80 backdrop-blur-md border border-[#FFD700]/30 rounded-xl px-4 py-2 shadow-[0_0_20px_rgba(255,215,0,0.1)]">
+                                <span className="text-[7px] text-[#FFD700] font-black tracking-[3px] uppercase block mb-0.5">DISTANCE</span>
+                                <span className="text-xl font-black text-white tabular-nums tracking-widest leading-none">{score.toString().padStart(5, '0')}</span>
                             </div>
-                            <div className="flex flex-col items-center scale-110">
-                                <span className="text-[8px] text-[#FFD700] font-black tracking-[4px] uppercase mb-1 drop-shadow-[0_0_10px_#B8860B]">DISTANCE</span>
-                                <div className="bg-black/90 border border-[#FFD700]/20 rounded-2xl px-5 py-2 flex items-center gap-2 shadow-[0_0_20px_rgba(255,215,0,0.1)]">
-                                    <span className="text-2xl font-black text-white tabular-nums tracking-widest leading-none">{score.toString().padStart(5, '0')}</span>
-                                </div>
+                            <div className="bg-black/60 backdrop-blur-sm border border-[#14F195]/20 rounded-lg px-3 py-1 flex items-center gap-2 self-start">
+                                <span className="text-[7px] text-[#14F195] font-black tracking-[2px] uppercase opacity-60">OINKS</span>
+                                <span className="text-sm font-black text-[#14F195] tabular-nums leading-none">{oinks}</span>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        {/* Community Record Center */}
+                        <div className="absolute left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top,0px)+1.5rem)]">
+                            <div className="bg-white/5 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 whitespace-nowrap">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#14F195] animate-pulse" />
+                                <span className="text-[8px] font-black uppercase tracking-[2px] text-white/60">
+                                    Community Record: <span className="text-[#FFD700]">120</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Pause Button Top-Right */}
+                        <div className="flex flex-col items-end gap-2">
                             <button
                                 onClick={togglePause}
-                                className="bg-black/80 p-2 rounded-lg border border-white/10 text-white hover:bg-white/10 active:scale-90 transition-all"
+                                className="bg-black/80 p-3 rounded-xl border border-white/10 text-white hover:bg-white/10 active:scale-90 transition-all shadow-lg"
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                     {isPaused ? <path d="M8 5v14l11-7z" /> : <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />}
                                 </svg>
                             </button>
+                            <div className="bg-black/40 backdrop-blur-sm px-2 py-1 rounded-md border border-white/5 opacity-40">
+                                <span className="text-[6px] text-white font-bold tracking-[2px] uppercase">BEST: {highScore}</span>
+                            </div>
                         </div>
                     </header>
 
@@ -228,6 +236,11 @@ export default function PhaserGame() {
                                 >
                                     TAP TO START
                                 </button>
+
+                                <div className="mt-4 animate-pulse flex flex-col items-center">
+                                    <span className="text-[10px] text-[#14F195] font-black tracking-[4px] uppercase">TAP TO JUMP</span>
+                                    <span className="text-[7px] text-white/40 uppercase tracking-[2px]">AVOID THE RED CANDLES</span>
+                                </div>
 
                                 <div className="flex flex-col gap-1 items-center mt-6 opacity-80">
                                     <p className="text-[#14F195] text-[10px] font-black uppercase tracking-[6px] drop-shadow-[0_0_10px_rgba(20,241,149,0.5)]">DODGE THE CANDLES</p>
