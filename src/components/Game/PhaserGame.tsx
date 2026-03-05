@@ -122,9 +122,10 @@ export default function PhaserGame() {
     };
 
     const handleShare = () => {
-        const text = `I just scored ${score} in MPIG RUN 🐷🔥\nThink you can beat my score?\n\nPlay: https://mpigg.xyz\n\n$MPIG`;
-        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
+        const text = `I just scored ${score} in MPIG RUN 🐷🔥\nThink you can beat my score?\n\n$MPIG`;
+        const shareUrl = "https://mpigg.xyz";
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+        window.open(twitterUrl, '_blank');
     };
 
     return (

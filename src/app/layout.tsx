@@ -23,8 +23,30 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "MPIG Game | Solana Flyer",
-  description: "Fly the cute MPIG through crypto candles in this Solana-themed arcade game.",
+  title: "MPIG RUN 🐷 | The Ultimate Solana Degame",
+  description: "Dodge the red candles, stack $MPIG, and reach for the moon in this hyper-addictive Solana flyer!",
+  openGraph: {
+    title: "MPIG RUN 🐷 | Can you beat my score?",
+    description: "The most addictive crypto game on Solana. Play now!",
+    url: "https://mpigg.xyz",
+    siteName: "MPIG RUN",
+    images: [
+      {
+        url: "/assets/x-post.png",
+        width: 1200,
+        height: 630,
+        alt: "MPIG RUN Game Preview",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MPIG RUN 🐷 | Score: [SCORE]",
+    description: "I'm crushing the candles! Can you beat me?",
+    images: ["/assets/x-post.png"],
+  },
 };
 
 export default function RootLayout({
