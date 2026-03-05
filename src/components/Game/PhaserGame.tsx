@@ -246,7 +246,7 @@ export default function PhaserGame() {
                 {gameState === GameState.IDLE && (
                     <div className="absolute inset-0 z-150 font-['var(--font-orbitron)'] pointer-events-auto">
                         <img
-                            src="/assets/front cover.png"
+                            src="/assets/front cover.webp"
                             className="absolute inset-0 w-full h-full object-cover"
                             alt="Front Cover"
                         />
@@ -288,7 +288,7 @@ export default function PhaserGame() {
                 {gameState === GameState.GAME_OVER && (
                     <div className="absolute inset-0 z-200 animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto overflow-hidden">
                         <img
-                            src="/assets/game over.png"
+                            src="/assets/game over.webp"
                             className="absolute inset-0 w-full h-full object-cover"
                             alt="Game Over"
                         />
