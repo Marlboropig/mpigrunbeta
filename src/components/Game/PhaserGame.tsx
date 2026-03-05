@@ -121,10 +121,32 @@ export default function PhaserGame() {
         }
     };
 
-    const handleShare = () => {
-        const text = `I just scored ${score} in MPIG RUN 🐷🔥\nThink you can beat my score?\n\n$MPIG`;
+    const handleShare = async () => {
+        const shareText = `I just scored ${score} in MPIG RUN 🐷🔥\nThink you can beat my score?\n\n$MPIG`;
         const shareUrl = "https://mpigg.xyz";
-        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+
+        try {
+            // Try modern mobile sharing first (supports attaching files)
+            if (navigator.share && navigator.canShare) {
+                const response = await fetch('/assets/x-post.png');
+                const blob = await response.blob();
+                const file = new File([blob], 'mpig-run.png', { type: 'image/png' });
+
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'MPIG RUN',
+                        text: `${shareText}\n\nPlay: ${shareUrl}`,
+                    });
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Error sharing:', error);
+        }
+
+        // Fallback for desktop or unsupported browsers (Twitter Intent)
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
         window.open(twitterUrl, '_blank');
     };
 
