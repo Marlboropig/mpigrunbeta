@@ -30,14 +30,12 @@ export const metadata: Metadata = {
     description: "The most addictive crypto game on Solana. Play now!",
     url: "https://mpigg.xyz",
     siteName: "MPIG RUN",
-    images: [
-      {
-        url: "/assets/x-post.png",
-        width: 1200,
-        height: 630,
-        alt: "MPIG RUN Game Preview",
-      },
-    ],
+    images: [{
+      url: "/assets/x-post.png",
+      width: 1200,
+      height: 630,
+      alt: "MPIG RUN Game Preview",
+    }],
     locale: "en_US",
     type: "website",
   },

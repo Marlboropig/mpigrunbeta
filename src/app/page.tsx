@@ -1,5 +1,5 @@
-// src/app/page.tsx
 'use client';
+// src/app/page.tsx
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 

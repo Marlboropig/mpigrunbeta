@@ -1,5 +1,5 @@
-// src/components/Game/PhaserGame.tsx
 'use client';
+// src/components/Game/PhaserGame.tsx
 import { useEffect, useRef, useState } from 'react';
 import { GameConfig } from '@/game/config';
 import { MainScene, GameState } from '@/game/scenes/MainScene';

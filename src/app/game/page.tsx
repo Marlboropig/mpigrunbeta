@@ -1,5 +1,5 @@
-// src/app/game/page.tsx
 'use client';
+// src/app/game/page.tsx
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 
