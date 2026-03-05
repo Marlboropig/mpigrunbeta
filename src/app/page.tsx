@@ -44,7 +44,7 @@ export default function Home() {
 
         {/* Console Terminal UI */}
         <div className="bg-black/80 border border-white/5 p-6 rounded-xl font-mono text-left w-full max-w-lg shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-[1px] bg-linear-to-r from-transparent via-[#14F195]/50 to-transparent" />
+          <div className="absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent via-[#14F195]/50 to-transparent" />
           <pre className="text-[#14F195] text-xs leading-relaxed whitespace-pre-wrap">
             {text}
             <span className="animate-pulse">_</span>
@@ -74,12 +74,12 @@ export default function Home() {
             <span className="text-[#14F195] font-black text-xl">HIGH</span>
             <span className="text-white/40 text-[9px] uppercase tracking-[4px]">Performance</span>
           </div>
-          <div className="w-[1px] h-8 bg-white/10" />
+          <div className="w-px h-8 bg-white/10" />
           <div className="flex flex-col items-center">
             <span className="text-[#14F195] font-black text-xl">4K</span>
             <span className="text-white/40 text-[9px] uppercase tracking-[4px]">Assets</span>
           </div>
-          <div className="w-[1px] h-8 bg-white/10" />
+          <div className="w-px h-8 bg-white/10" />
           <div className="flex flex-col items-center">
             <span className="text-[#14F195] font-black text-xl">SOL</span>
             <span className="text-white/40 text-[9px] uppercase tracking-[4px]">Chain</span>

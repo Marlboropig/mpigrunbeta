@@ -215,7 +215,7 @@ export default function PhaserGame() {
 
                 {/* Pause Modal */}
                 {isPaused && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-100 flex items-center justify-center p-6 animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto">
                         <div className="w-full max-w-[320px] bg-black/80 border border-[#FFD700]/30 rounded-2xl p-6 relative shadow-2xl animate-zoom-in">
                             <div className="absolute inset-1 border border-[#FFD700]/5 rounded-xl pointer-events-none" />
                             <div className="text-center mb-6">
@@ -244,7 +244,7 @@ export default function PhaserGame() {
 
                 {/* Start UI */}
                 {gameState === GameState.IDLE && (
-                    <div className="absolute inset-0 z-[150] font-['var(--font-orbitron)'] pointer-events-auto">
+                    <div className="absolute inset-0 z-150 font-['var(--font-orbitron)'] pointer-events-auto">
                         <img
                             src="/assets/front cover.png"
                             className="absolute inset-0 w-full h-full object-cover"
@@ -286,7 +286,7 @@ export default function PhaserGame() {
 
                 {/* Game Over UI */}
                 {gameState === GameState.GAME_OVER && (
-                    <div className="absolute inset-0 z-[200] animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto overflow-hidden">
+                    <div className="absolute inset-0 z-200 animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto overflow-hidden">
                         <img
                             src="/assets/game over.png"
                             className="absolute inset-0 w-full h-full object-cover"
