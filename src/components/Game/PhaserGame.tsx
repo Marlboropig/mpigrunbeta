@@ -39,6 +39,9 @@ export default function PhaserGame() {
     // Settings
     const [soundOn, setSoundOn] = useState(true);
     const [musicOn, setMusicOn] = useState(true);
+    const [globalLeaderboard, setGlobalLeaderboard] = useState<any[]>([]);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [playerRank, setPlayerRank] = useState<number | null>(null);
 
     useEffect(() => {
         const storedHighScore = localStorage.getItem('mpig-highscore');
@@ -78,27 +81,30 @@ export default function PhaserGame() {
                     setHighScore(currentHigh);
                 });
 
-                game.events.on('game-over', (finalScore: number) => {
+                game.events.on('game-over', async (finalScore: number) => {
                     setGameState(GameState.GAME_OVER);
                     setIsPaused(false);
+
+                    // Local highscore update
                     const currentHigh = parseInt(localStorage.getItem('mpig-highscore') || '0');
                     if (finalScore > currentHigh) {
                         setHighScore(finalScore);
                         localStorage.setItem('mpig-highscore', finalScore.toString());
                     }
-                });
 
-                game.events.on('level-up', (theme: string) => setLevelTheme(theme));
-
-                game.events.on('game-over', async (finalScore: number) => {
+                    // Global sync if connected
                     if (connected && publicKey) {
                         await submitScore(publicKey.toString(), finalScore);
                     }
+
+                    // Refresh ranking list
+                    await fetchLeaderboard();
                 });
             }
         }
 
         initPhaser();
+        fetchLeaderboard();
 
         return () => {
             if (gameRef.current) {
@@ -175,14 +181,36 @@ export default function PhaserGame() {
         window.open(twitterUrl, '_blank');
     };
 
-    const submitScore = async (address: string, score: number) => {
+    const fetchLeaderboard = async () => {
         try {
-            console.log(`Submitting score ${score} for ${address}...`);
-            // This will be connected to the backend in Phase 3
-            // For now, we'll store it locally but simulate the sync
-            localStorage.setItem('mpig-last-sync-score', score.toString());
+            const url = connected && publicKey
+                ? `/api/leaderboard?address=${publicKey.toString()}`
+                : '/api/leaderboard';
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.leaderboard) setGlobalLeaderboard(data.leaderboard);
+            if (data.rank) setPlayerRank(data.rank);
+        } catch (err) {
+            console.error('Failed to fetch leaderboard:', err);
+        }
+    };
+
+    const submitScore = async (address: string, finalScore: number) => {
+        try {
+            setIsSyncing(true);
+            await fetch('/api/leaderboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    wallet_address: address,
+                    high_score: finalScore,
+                    oinks: oinks
+                })
+            });
         } catch (error) {
             console.error('Failed to submit score:', error);
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -365,22 +393,48 @@ export default function PhaserGame() {
                                     <span className="text-2xl font-black text-[#14F195] drop-shadow-[0_0_10px_rgba(20,241,149,0.3)]">{oinks}</span>
                                 </div>
 
-                                {/* Leaderboard Placement Preview */}
-                                <div className="w-full bg-white/5 rounded-2xl p-4 mb-6 border border-white/10 backdrop-blur-sm">
-                                    <h3 className="text-[8px] uppercase tracking-[4px] text-white/40 font-black mb-3">GLOBAL RANKINGS</h3>
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-center opacity-50">
-                                            <span className="text-[8px] text-white font-bold">1. SOL_WHALE</span>
-                                            <span className="text-[8px] text-[#FFD700] font-black">4,520</span>
+                                {/* Individual Rank Display */}
+                                <div className="w-full bg-white/5 rounded-2xl p-4 mb-4 border border-white/10 backdrop-blur-sm flex flex-col items-center justify-center min-h-[100px] relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-linear-to-b from-[#14F195]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                    <h3 className="text-[8px] uppercase tracking-[4px] text-white/40 font-black mb-3">GLOBAL RANKING</h3>
+
+                                    {connected ? (
+                                        <div className="flex flex-col items-center animate-zoom-in">
+                                            <span className="text-4xl font-black italic text-[#14F195] drop-shadow-[0_0_15px_rgba(20,241,149,0.5)]">
+                                                #{playerRank || '??'}
+                                            </span>
+                                            <span className="text-[7px] text-white/60 uppercase tracking-[2px] font-bold mt-2">OUT OF ALL MISSIONS</span>
                                         </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[8px] text-[#14F195] font-black">YOU (RANK #??)</span>
-                                            <span className="text-[8px] text-white font-black">{score}</span>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-3">
+                                            <span className="text-[10px] text-red-500/80 font-black uppercase tracking-[2px] text-center animate-pulse px-4">
+                                                IDENTITY NOT SECURED
+                                            </span>
+                                            <button
+                                                onClick={() => document.querySelector('.wallet-adapter-button-trigger')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))}
+                                                className="text-[8px] text-[#14F195] font-black uppercase tracking-[2px] underline hover:text-white transition-colors"
+                                            >
+                                                CONNECT TO SAVE RANK
+                                            </button>
                                         </div>
-                                    </div>
-                                    {!connected && (
-                                        <p className="text-[6px] text-red-400 font-black uppercase tracking-[2px] text-center mt-3">Connect wallet to save score!</p>
                                     )}
+
+                                    {isSyncing && (
+                                        <div className="absolute bottom-2 right-3 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[#14F195] animate-ping" />
+                                            <span className="text-[6px] text-[#14F195] font-black tracking-widest uppercase">SYNCING</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 mb-6">
+                                    <Link href="/profile" className="h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-all active:scale-95 group">
+                                        <span className="text-[8px] font-black text-white/60 group-hover:text-white uppercase tracking-[2px]">MY PROFILE</span>
+                                    </Link>
+                                    <Link href="/leaderboard" className="h-10 bg-[#14F195]/5 border border-[#14F195]/20 rounded-xl flex items-center justify-center hover:bg-[#14F195]/10 transition-all active:scale-95 group">
+                                        <span className="text-[8px] font-black text-[#14F195] uppercase tracking-[2px]">HALL OF FAME</span>
+                                    </Link>
                                 </div>
 
                                 <div className="flex flex-col w-full gap-3">

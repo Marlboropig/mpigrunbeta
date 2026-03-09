@@ -61,12 +61,20 @@ export default function Home() {
             <span className="relative z-10 text-black font-black tracking-[5px] uppercase italic text-sm">LAUNCH MISSION</span>
           </Link>
 
-          <button
-            disabled
-            className="px-8 py-5 bg-white/5 border border-white/10 text-white/20 font-black rounded-2xl cursor-not-allowed w-full sm:w-auto tracking-[3px] text-[10px] uppercase"
-          >
-            PHASE 2 (LOCKED)
-          </button>
+          <div className="flex flex-col gap-3 w-full sm:w-auto">
+            <Link
+              href="/profile"
+              className="px-8 py-5 bg-white/5 border border-white/10 text-white font-black rounded-2xl w-full text-sm tracking-[3px] uppercase hover:bg-white/10 transition-colors text-center shadow-lg"
+            >
+              PROFILE
+            </Link>
+            <Link
+              href="/leaderboard"
+              className="px-8 py-5 bg-[#14F195]/10 border border-[#14F195]/20 text-[#14F195] font-black rounded-2xl w-full text-[10px] tracking-[4px] uppercase hover:bg-[#14F195]/20 transition-colors text-center"
+            >
+              HALL OF FAME
+            </Link>
+          </div>
         </div>
 
         <div className="pt-8 flex items-center justify-center space-x-12 opacity-30">
