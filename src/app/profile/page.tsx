@@ -12,10 +12,10 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (connected && publicKey) {
-            fetch(`/api/leaderboard?address=${publicKey.toString()}`)
+            fetch(`/api/leaderboard?address=${publicKey.toBase58()}`)
                 .then(res => res.json())
                 .then(data => {
-                    const me = data.leaderboard?.find((e: any) => e.wallet_address === publicKey.toString());
+                    const me = data.leaderboard?.find((e: any) => e.wallet_address === publicKey?.toBase58());
                     if (me?.username) setUsername(me.username);
                 });
         }
@@ -30,7 +30,7 @@ export default function ProfilePage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    wallet_address: publicKey.toString(),
+                    wallet_address: publicKey.toBase58(),
                     username: username,
                     update_only_username: true
                 })
@@ -80,7 +80,7 @@ export default function ProfilePage() {
 
                         <div className="bg-white/5 border border-white/5 rounded-xl p-4">
                             <label className="text-[8px] font-black text-white/30 tracking-[3px] uppercase block mb-2">CONNECTED WALLET</label>
-                            <p className="text-[10px] text-white/80 font-mono truncate">{publicKey.toString()}</p>
+                            <p className="text-[10px] text-white/80 font-mono truncate">{publicKey?.toBase58() || '---'}</p>
                         </div>
 
                         <button

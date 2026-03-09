@@ -94,7 +94,7 @@ export default function PhaserGame() {
 
                     // Global sync if connected
                     if (connected && publicKey) {
-                        await submitScore(publicKey.toString(), finalScore);
+                        await submitScore(publicKey.toBase58(), finalScore);
                     }
 
                     // Refresh ranking list
@@ -184,7 +184,7 @@ export default function PhaserGame() {
     const fetchLeaderboard = async () => {
         try {
             const url = connected && publicKey
-                ? `/api/leaderboard?address=${publicKey.toString()}`
+                ? `/api/leaderboard?address=${publicKey.toBase58()}`
                 : '/api/leaderboard';
             const res = await fetch(url);
             const data = await res.json();

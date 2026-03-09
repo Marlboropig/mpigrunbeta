@@ -47,7 +47,7 @@ export default function GlobalLeaderboardPage() {
                         </div>
                     ) : (
                         leaderboard.map((entry, idx) => (
-                            <div key={idx} className={`flex px-6 py-5 border-b border-white/5 items-center hover:bg-white/[0.02] transition-colors ${idx < 3 ? 'bg-white/[0.03]' : ''}`}>
+                            <div key={idx} className={`flex px-6 py-5 border-b border-white/5 items-center hover:bg-white/2 transition-colors ${idx < 3 ? 'bg-white/3' : ''}`}>
                                 <span className={`w-12 text-sm font-black italic ${idx === 0 ? 'text-[#FFD700]' : idx === 1 ? 'text-[#C0C0C0]' : idx === 2 ? 'text-[#CD7F32]' : 'text-white/40'}`}>
                                     #{idx + 1}
                                 </span>
@@ -67,7 +67,7 @@ export default function GlobalLeaderboardPage() {
                     )}
                 </div>
 
-                <div className="p-6 bg-white/[0.02] border-t border-white/5 text-center">
+                <div className="p-6 bg-white/2 border-t border-white/5 text-center">
                     <p className="text-[8px] text-white/20 font-black uppercase tracking-[3px] leading-relaxed">
                         PLAY THE GAME TO CLAIM YOUR RANK IN THE HALL OF FAME. CONNECT YOUR WALLET TO SET YOUR USERNAME.
                     </p>
