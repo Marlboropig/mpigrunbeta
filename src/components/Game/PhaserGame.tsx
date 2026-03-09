@@ -4,10 +4,29 @@ import { useEffect, useRef, useState } from 'react';
 import { GameConfig } from '@/game/config';
 import { MainScene, GameState } from '@/game/scenes/MainScene';
 import Link from 'next/link';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+
+// Base style for wallet button overrides
+const WALLET_STYLES = {
+    backgroundColor: 'transparent',
+    border: '1px solid rgba(255, 215, 0, 0.3)',
+    borderRadius: '12px',
+    fontSize: '10px',
+    height: '40px',
+    fontFamily: 'var(--font-orbitron)',
+    textTransform: 'uppercase',
+    color: '#FFD700',
+    letterSpacing: '2px',
+    fontWeight: '900',
+    padding: '0 20px',
+    width: '100%'
+};
 
 export default function PhaserGame() {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameRef = useRef<Phaser.Game | null>(null);
+    const { publicKey, connected } = useWallet();
 
     // UI State
     const [score, setScore] = useState(0);
@@ -70,6 +89,12 @@ export default function PhaserGame() {
                 });
 
                 game.events.on('level-up', (theme: string) => setLevelTheme(theme));
+
+                game.events.on('game-over', async (finalScore: number) => {
+                    if (connected && publicKey) {
+                        await submitScore(publicKey.toString(), finalScore);
+                    }
+                });
             }
         }
 
@@ -148,6 +173,17 @@ export default function PhaserGame() {
         // Fallback for desktop or unsupported browsers (Twitter Intent)
         const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
         window.open(twitterUrl, '_blank');
+    };
+
+    const submitScore = async (address: string, score: number) => {
+        try {
+            console.log(`Submitting score ${score} for ${address}...`);
+            // This will be connected to the backend in Phase 3
+            // For now, we'll store it locally but simulate the sync
+            localStorage.setItem('mpig-last-sync-score', score.toString());
+        } catch (error) {
+            console.error('Failed to submit score:', error);
+        }
     };
 
     return (
@@ -270,14 +306,29 @@ export default function PhaserGame() {
                                     <p className="text-[#FFD700] text-[8px] font-black uppercase tracking-[4px]">STACK $MPIG</p>
                                 </div>
 
-                                <div className="mt-8 py-2 px-4 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm group cursor-pointer active:scale-95 transition-all"
-                                    onClick={() => {
-                                        navigator.clipboard.writeText("Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump");
-                                        alert("CA Copied!");
-                                    }}>
-                                    <p className="text-white/40 text-[7px] uppercase tracking-[2px] font-black group-hover:text-white transition-colors">
-                                        CA: Ff7...pump <span className="ml-2 text-[#14F195]">COPY</span>
-                                    </p>
+                                <div className="mt-8 w-full flex flex-col gap-3">
+                                    <div className="relative group">
+                                        <div className="absolute -inset-0.5 bg-linear-to-r from-[#FFD700] to-[#B8860B] rounded-xl blur-xs opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                                        <WalletMultiButton style={WALLET_STYLES} />
+                                    </div>
+
+                                    {connected && publicKey && (
+                                        <div className="mt-2 py-2 px-4 rounded-full bg-[#14F195]/10 border border-[#14F195]/30">
+                                            <p className="text-[#14F195] text-[7px] uppercase tracking-[2px] font-black text-center">
+                                                IDENTITY SECURED: {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="py-2 px-4 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm group cursor-pointer active:scale-95 transition-all text-center"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText("Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump");
+                                            alert("CA Copied!");
+                                        }}>
+                                        <p className="text-white/40 text-[7px] uppercase tracking-[2px] font-black group-hover:text-white transition-colors">
+                                            CA: Ff7...pump <span className="ml-2 text-[#14F195]">COPY</span>
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -309,9 +360,27 @@ export default function PhaserGame() {
                             </div>
 
                             <div className="w-full max-w-[320px] animate-slide-in-up">
-                                <div className="w-full bg-[#14F195]/10 rounded-2xl py-3 px-4 mb-6 border border-[#14F195]/20 backdrop-blur-sm flex justify-between items-center">
+                                <div className="w-full bg-[#14F195]/10 rounded-2xl py-3 px-4 mb-4 border border-[#14F195]/20 backdrop-blur-sm flex justify-between items-center">
                                     <span className="text-[9px] uppercase tracking-[3px] text-[#14F195] font-black">TOTAL OINKS</span>
                                     <span className="text-2xl font-black text-[#14F195] drop-shadow-[0_0_10px_rgba(20,241,149,0.3)]">{oinks}</span>
+                                </div>
+
+                                {/* Leaderboard Placement Preview */}
+                                <div className="w-full bg-white/5 rounded-2xl p-4 mb-6 border border-white/10 backdrop-blur-sm">
+                                    <h3 className="text-[8px] uppercase tracking-[4px] text-white/40 font-black mb-3">GLOBAL RANKINGS</h3>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center opacity-50">
+                                            <span className="text-[8px] text-white font-bold">1. SOL_WHALE</span>
+                                            <span className="text-[8px] text-[#FFD700] font-black">4,520</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[8px] text-[#14F195] font-black">YOU (RANK #??)</span>
+                                            <span className="text-[8px] text-white font-black">{score}</span>
+                                        </div>
+                                    </div>
+                                    {!connected && (
+                                        <p className="text-[6px] text-red-400 font-black uppercase tracking-[2px] text-center mt-3">Connect wallet to save score!</p>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col w-full gap-3">
