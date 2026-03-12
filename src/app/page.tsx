@@ -95,8 +95,10 @@ export default function Home() {
         </div>
       </div>
 
-      <footer className="absolute bottom-8 text-[#14F195]/20 text-[9px] font-black tracking-[10px] uppercase">
-        MPIG RUN TERMINAL v1.0.4
+      <footer className="absolute bottom-8 text-[#14F195]/20 text-[9px] font-black tracking-[10px] uppercase hover:text-[#14F195]/60 transition-colors">
+        <Link href="/admin">
+          MPIG RUN TERMINAL v1.0.4
+        </Link>
       </footer>
     </main>
   );
