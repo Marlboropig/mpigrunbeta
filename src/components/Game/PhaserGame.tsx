@@ -42,6 +42,8 @@ export default function PhaserGame() {
     const [globalLeaderboard, setGlobalLeaderboard] = useState<any[]>([]);
     const [isSyncing, setIsSyncing] = useState(false);
     const [playerRank, setPlayerRank] = useState<number | null>(null);
+    const [config, setConfig] = useState<any>(null);
+    const [isBanned, setIsBanned] = useState(false);
 
     useEffect(() => {
         const storedHighScore = localStorage.getItem('mpig-highscore');
@@ -82,6 +84,9 @@ export default function PhaserGame() {
                 });
 
                 game.events.on('game-over', async (finalScore: number) => {
+                    // Check local ban just in case
+                    if (isBanned) return;
+
                     setGameState(GameState.GAME_OVER);
                     setIsPaused(false);
 
@@ -105,8 +110,13 @@ export default function PhaserGame() {
 
         initPhaser();
         fetchLeaderboard();
+        fetchConfig();
+
+        // Poll for config changes (Maintenance, Announcements)
+        const configPoll = setInterval(fetchConfig, 10000);
 
         return () => {
+            clearInterval(configPoll);
             if (gameRef.current) {
                 gameRef.current.events.off('game-init');
                 gameRef.current.events.off('score-update');
@@ -188,10 +198,42 @@ export default function PhaserGame() {
                 : '/api/leaderboard';
             const res = await fetch(url);
             const data = await res.json();
+
             if (data.leaderboard) setGlobalLeaderboard(data.leaderboard);
             if (data.rank) setPlayerRank(data.rank);
+
+            // Anti-cheat check
+            if (connected && publicKey) {
+                const me = data.leaderboard?.find((p: any) => p.wallet_address === publicKey.toBase58());
+                if (me?.is_banned) {
+                    setIsBanned(true);
+                }
+            }
         } catch (err) {
             console.error('Failed to fetch leaderboard:', err);
+        }
+    };
+
+    const fetchConfig = async () => {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+            setConfig(data);
+
+            // Pass tuning to Phaser
+            if (gameRef.current) {
+                gameRef.current.events.emit('update-tuning', {
+                    speedMult: data.base_speed_multiplier,
+                    oinkMult: data.oink_multiplier,
+                    spawnMult: data.obstacle_spawn_rate
+                });
+
+                if (data.maintenance_mode && gameState === GameState.PLAYING) {
+                    gameRef.current.events.emit('request-pause');
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch config:', err);
         }
     };
 
@@ -222,7 +264,51 @@ export default function PhaserGame() {
                 {/* Main HUD Overlay - Contained inside the aspect ratio box */}
                 <div className="absolute inset-0 pointer-events-none flex flex-col font-['var(--font-orbitron)'] z-10">
 
+                    {/* Announcement Ticker */}
+                    {config?.announcement_text && !config.maintenance_mode && (
+                        <div className="w-full bg-[#14F195]/20 backdrop-blur-md border-b border-[#14F195]/30 overflow-hidden py-1 pointer-events-auto">
+                            <div className="whitespace-nowrap flex animate-marquee">
+                                <span className="text-[7px] font-black text-[#14F195] tracking-[4px] uppercase px-4 italic">
+                                    {config.announcement_text} • {config.announcement_text} • {config.announcement_text}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Top HUD - Mobile Optimized */}
+                    {/* 1. Maintenance Screen */}
+                    {config?.maintenance_mode && (
+                        <div className="absolute inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center pointer-events-auto">
+                            <div className="w-24 h-24 border-2 border-red-500/20 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-[0_0_50px_rgba(255,0,0,0.2)]">
+                                <span className="text-5xl">🛑</span>
+                            </div>
+                            <h2 className="text-3xl font-black text-red-500 tracking-[8px] uppercase mb-4">MISSION SUSPENDED</h2>
+                            <p className="text-white/40 text-[10px] font-black tracking-[3px] uppercase max-w-[250px] leading-relaxed italic mb-10">
+                                Command terminal is undergoing maintenance protocols. Standby for reconnection.
+                            </p>
+                            <Link href="/" className="px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-white/60 text-[8px] font-black tracking-[4px] uppercase hover:bg-white/10 transition-all">
+                                EXIT TERMINAL
+                            </Link>
+                        </div>
+                    )}
+
+                    {/* 2. Ban Screen */}
+                    {isBanned && (
+                        <div className="absolute inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center pointer-events-auto">
+                            <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mb-8 animate-bounce">
+                                <span className="text-5xl">🚫</span>
+                            </div>
+                            <h2 className="text-3xl font-black text-red-500 tracking-[8px] uppercase mb-4">ACCESS TERMINATED</h2>
+                            <p className="text-white/40 text-[10px] font-black tracking-[3px] uppercase max-w-[250px] leading-relaxed italic mb-10">
+                                Your wallet has been blacklisted for violating mission protocols.
+                            </p>
+                            <Link href="/" className="px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-white/60 text-[8px] font-black tracking-[4px] uppercase hover:bg-white/10 transition-all">
+                                RETURN TO CIVILIAN LIFE
+                            </Link>
+                        </div>
+                    )}
+
+                    {/* Pause/Game Over Screen Handling... */}
                     <header className="px-4 py-2 pt-[calc(env(safe-area-inset-top,0px)+1rem)] flex items-start justify-between w-full pointer-events-auto">
                         {/* Score & Oinks Top-Left */}
                         <div className="flex flex-col gap-2">

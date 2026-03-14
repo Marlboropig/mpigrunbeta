@@ -40,6 +40,13 @@ export class MainScene extends Phaser.Scene {
   private floatingShapes!: Phaser.GameObjects.Group;
   private currentDifficulty: Difficulty = DIFFICULTY_SETTINGS[0];
 
+  // Admin Tuning
+  private tuning = {
+    speedMult: 1.0,
+    oinkMult: 1.0,
+    spawnMult: 1.0
+  };
+
   // Settings
   private soundEnabled: boolean = true;
   private musicEnabled: boolean = true;
@@ -167,6 +174,13 @@ export class MainScene extends Phaser.Scene {
       }
     });
 
+    this.game.events.on('update-tuning', (data: any) => {
+      this.tuning = data;
+      if (this.state === GameState.PLAYING) {
+        this.resetSpawnTimer();
+      }
+    });
+
     this.game.events.emit('game-init');
   }
 
@@ -244,7 +258,7 @@ export class MainScene extends Phaser.Scene {
   private resetSpawnTimer() {
     if (this.spawnTimer) this.spawnTimer.remove();
     this.spawnTimer = this.time.addEvent({
-      delay: this.currentDifficulty.spawnDelay,
+      delay: this.currentDifficulty.spawnDelay / this.tuning.spawnMult,
       callback: this.spawnObstacles,
       callbackScope: this,
       loop: true
@@ -274,6 +288,7 @@ export class MainScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
     const { speed, gap, theme } = this.currentDifficulty;
+    const actualSpeed = speed * this.tuning.speedMult;
 
     let pattern = Phaser.Math.Between(0, 2);
     if (this.score < 5) pattern = Phaser.Math.Between(0, 1);
@@ -292,10 +307,10 @@ export class MainScene extends Phaser.Scene {
       else obs.setDisplaySize(30, h + 200).setBodySize(obs.width, obs.height);
 
       this.applyTheme(obs, theme);
-      this.createScoreZone(width + 100, speed);
+      this.createScoreZone(width + 100, actualSpeed);
 
-      this.spawnRewardRandomly(width + 100, height - h - 100, speed);
-      this.spawnRewardRandomly(width + 150, height - h - 40, speed, true);
+      this.spawnRewardRandomly(width + 100, height - h - 100, actualSpeed);
+      this.spawnRewardRandomly(width + 150, height - h - 40, actualSpeed, true);
     }
     else if (pattern === 1) {
       const h = Phaser.Math.Between(minClearance, height - 350);
@@ -307,10 +322,10 @@ export class MainScene extends Phaser.Scene {
       else obs.setDisplaySize(30, h + 200).setBodySize(obs.width, obs.height);
 
       this.applyTheme(obs, theme);
-      this.createScoreZone(width + 100, speed);
+      this.createScoreZone(width + 100, actualSpeed);
 
-      this.spawnRewardRandomly(width + 100, h + 100, speed);
-      this.spawnRewardRandomly(width + 150, h + 40, speed, true);
+      this.spawnRewardRandomly(width + 100, h + 100, actualSpeed);
+      this.spawnRewardRandomly(width + 150, h + 40, actualSpeed, true);
     }
     else {
       const topH = Phaser.Math.Between(150, height - gap - 150);
@@ -328,15 +343,15 @@ export class MainScene extends Phaser.Scene {
       this.applyTheme(bottom, theme);
 
       const safeGap = this.add.image(width + 100, topH + gap / 2, 'safe_gap').setDisplaySize(60, gap).setAlpha(0.2);
-      this.createScoreZone(width + 100, speed, safeGap);
+      this.createScoreZone(width + 100, actualSpeed, safeGap);
 
-      this.spawnRewardRandomly(width + 70, topH + gap / 2, speed);
-      this.spawnRewardRandomly(width + 130, topH + gap / 2 - 40, speed, true);
-      this.spawnRewardRandomly(width + 130, topH + gap / 2 + 40, speed, true);
+      this.spawnRewardRandomly(width + 70, topH + gap / 2, actualSpeed);
+      this.spawnRewardRandomly(width + 130, topH + gap / 2 - 40, actualSpeed, true);
+      this.spawnRewardRandomly(width + 130, topH + gap / 2 + 40, actualSpeed, true);
     }
 
     this.obstacles.getChildren().forEach((child: any) => {
-      (child.body as Phaser.Physics.Arcade.Body).velocity.x = -speed;
+      (child.body as Phaser.Physics.Arcade.Body).velocity.x = -actualSpeed;
     });
   }
 
@@ -387,7 +402,7 @@ export class MainScene extends Phaser.Scene {
       onComplete: () => coin.destroy()
     });
 
-    const val = coin.getData('value') || 10;
+    const val = Math.floor((coin.getData('value') || 10) * this.tuning.oinkMult);
     this.totalOinks += val;
     this.game.events.emit('oinks-update', this.totalOinks);
     this.coinParticles.emitParticleAt(mpig.x, mpig.y, 8);
@@ -548,7 +563,7 @@ export class MainScene extends Phaser.Scene {
     if (this.state === GameState.PLAYING) {
       // 1. Update Distance-based Score
       // Increment distance based on speed (pixels/sec)
-      this.distance += (this.currentDifficulty.speed * delta) / 1000;
+      this.distance += ((this.currentDifficulty.speed * this.tuning.speedMult) * delta) / 1000;
 
       // Calculate score based on distance (1 score unit per 100 pixels)
       const newScore = Math.floor(this.distance / 100);
@@ -558,7 +573,7 @@ export class MainScene extends Phaser.Scene {
         this.checkDifficulty();
       }
 
-      this.background.tilePositionX += this.currentDifficulty.speed * 0.005;
+      this.background.tilePositionX += (this.currentDifficulty.speed * this.tuning.speedMult) * 0.005;
 
       if ((this.mpig.body as Phaser.Physics.Arcade.Body).velocity.y > 0 && this.mpig.angle < 25) {
         this.mpig.angle += 1;
