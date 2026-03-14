@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import jwt from 'jsonwebtoken';
 
 /**
  * Milestone 3 API - Global Leaderboard Sync
@@ -40,10 +41,25 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return NextResponse.json({ error: 'Missing or invalid authentication token' }, { status: 401 });
+        }
+
+        const token = authHeader.split(' ')[1];
+        let decodedToken: any;
+
+        try {
+            const secret = process.env.ADMIN_SECRET || 'mpig_fallback_secret_key_2026';
+            decodedToken = jwt.verify(token, secret);
+        } catch (err) {
+            return NextResponse.json({ error: 'Token expired or invalid' }, { status: 401 });
+        }
+
         const { wallet_address, high_score, oinks, username, update_only_username } = await request.json();
 
-        if (!wallet_address) {
-            return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
+        if (!wallet_address || decodedToken.wallet_address !== wallet_address) {
+            return NextResponse.json({ error: 'Invalid wallet address or token mismatch' }, { status: 400 });
         }
 
         if (update_only_username) {

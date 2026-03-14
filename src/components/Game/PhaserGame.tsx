@@ -6,6 +6,7 @@ import { MainScene, GameState } from '@/game/scenes/MainScene';
 import Link from 'next/link';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import bs58 from 'bs58';
 
 // Base style for wallet button overrides
 const WALLET_STYLES = {
@@ -26,7 +27,11 @@ const WALLET_STYLES = {
 export default function PhaserGame() {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameRef = useRef<Phaser.Game | null>(null);
-    const { publicKey, connected } = useWallet();
+    const { publicKey, connected, signMessage } = useWallet();
+
+    // Auth State
+    const [authToken, setAuthToken] = useState<string | null>(null);
+    const [isSigning, setIsSigning] = useState(false);
 
     // UI State
     const [score, setScore] = useState(0);
@@ -48,6 +53,9 @@ export default function PhaserGame() {
     useEffect(() => {
         const storedHighScore = localStorage.getItem('mpig-highscore');
         if (storedHighScore) setHighScore(parseInt(storedHighScore));
+
+        const storedToken = localStorage.getItem('mpig-auth-token');
+        if (storedToken) setAuthToken(storedToken);
 
         async function initPhaser() {
             const Phaser = (await import('phaser')).default;
@@ -131,6 +139,13 @@ export default function PhaserGame() {
         };
     }, []);
 
+    useEffect(() => {
+        if (!connected) {
+            setAuthToken(null);
+            localStorage.removeItem('mpig-auth-token');
+        }
+    }, [connected, publicKey]);
+
     const togglePause = () => {
         if (gameRef.current) {
             gameRef.current.events.emit('request-pause');
@@ -159,6 +174,49 @@ export default function PhaserGame() {
     const handleActionInPhaser = () => {
         if (gameRef.current) {
             gameRef.current.events.emit('request-action');
+        }
+    };
+
+    const handleSignToPlay = async () => {
+        if (!publicKey || !signMessage) return;
+        try {
+            setIsSigning(true);
+            const message = "Sign this message to authenticate your MPIG game session.";
+            const messageBytes = new TextEncoder().encode(message);
+            const signature = await signMessage(messageBytes);
+            const signatureBs58 = bs58.encode(signature);
+
+            const res = await fetch('/api/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    publicKey: publicKey.toBase58(),
+                    signature: signatureBs58,
+                    message
+                })
+            });
+            const data = await res.json();
+            if (data.token) {
+                setAuthToken(data.token);
+                localStorage.setItem('mpig-auth-token', data.token);
+                // Auto start game after sign
+                handleActionInPhaser();
+            } else {
+                alert("Authentication failed. Please try again.");
+            }
+        } catch (err) {
+            console.error('Signing failed:', err);
+            alert("Signature rejected. Operations restricted.");
+        } finally {
+            setIsSigning(false);
+        }
+    };
+
+    const handleStartClick = () => {
+        if (connected && !authToken) {
+            handleSignToPlay();
+        } else {
+            handleActionInPhaser();
         }
     };
 
@@ -240,9 +298,14 @@ export default function PhaserGame() {
     const submitScore = async (address: string, finalScore: number) => {
         try {
             setIsSyncing(true);
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
             await fetch('/api/leaderboard', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     wallet_address: address,
                     high_score: finalScore,
@@ -404,10 +467,11 @@ export default function PhaserGame() {
                         <div className="absolute inset-x-0 bottom-0 pb-20 pt-10 bg-linear-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center justify-end px-6">
                             <div className="animate-fade-in text-center flex flex-col items-center w-full max-w-[320px]">
                                 <button
-                                    onClick={() => handleActionInPhaser()}
+                                    onClick={handleStartClick}
+                                    disabled={isSigning}
                                     className="pill-button-gold w-full h-16 text-lg font-black tracking-[8px] hover:scale-[1.05] transition-all active:scale-95 shadow-[0_10px_40px_rgba(212,175,55,0.4)] border-2 border-[#FFE44D]/30"
                                 >
-                                    TAP TO START
+                                    {isSigning ? 'AUTHENTICATING...' : (connected && !authToken) ? 'SIGN SECURELY' : 'TAP TO START'}
                                 </button>
 
                                 <div className="mt-4 animate-pulse flex flex-col items-center">

@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import Link from 'next/link';
+import bs58 from 'bs58';
 
 export default function ProfilePage() {
-    const { publicKey, connected } = useWallet();
+    const { publicKey, connected, signMessage } = useWallet();
     const [username, setUsername] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [status, setStatus] = useState('');
@@ -24,24 +25,58 @@ export default function ProfilePage() {
     const handleSave = async () => {
         if (!publicKey) return;
         setIsSaving(true);
-        setStatus('Saving...');
+        setStatus('Authenticating...');
         try {
+            let token = localStorage.getItem('mpig-auth-token');
+            
+            // If no token exists, force them to sign
+            if (!token) {
+                if (!signMessage) throw new Error("Wallet does not support signing.");
+                const message = "Sign this message to authenticate your MPIG game session.";
+                const messageBytes = new TextEncoder().encode(message);
+                const signature = await signMessage(messageBytes);
+                
+                const authRes = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        publicKey: publicKey.toBase58(),
+                        signature: bs58.encode(signature),
+                        message
+                    })
+                });
+                
+                const authData = await authRes.json();
+                if (authData.token) {
+                    token = authData.token;
+                    localStorage.setItem('mpig-auth-token', token as string);
+                } else {
+                    throw new Error("Authentication rejected by server");
+                }
+            }
+
+            setStatus('Saving...');
             const res = await fetch('/api/leaderboard', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     wallet_address: publicKey.toBase58(),
                     username: username,
                     update_only_username: true
                 })
             });
+
             if (res.ok) setStatus('Username updated!');
-            else setStatus('Error saving username.');
-        } catch (err) {
-            setStatus('Network error.');
+            else throw new Error('Error saving username.');
+        } catch (err: any) {
+            console.error(err);
+            setStatus(err.message || 'Network error.');
         } finally {
             setIsSaving(false);
-            setTimeout(() => setStatus(''), 3000);
+            setTimeout(() => setStatus(''), 4000);
         }
     };
 
