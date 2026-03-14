@@ -4,10 +4,29 @@ import { useEffect, useRef, useState } from 'react';
 import { GameConfig } from '@/game/config';
 import { MainScene, GameState } from '@/game/scenes/MainScene';
 import Link from 'next/link';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+
+// Base style for wallet button overrides
+const WALLET_STYLES = {
+    backgroundColor: 'transparent',
+    border: '1px solid rgba(255, 215, 0, 0.3)',
+    borderRadius: '12px',
+    fontSize: '10px',
+    height: '40px',
+    fontFamily: 'var(--font-orbitron)',
+    textTransform: 'uppercase',
+    color: '#FFD700',
+    letterSpacing: '2px',
+    fontWeight: '900',
+    padding: '0 20px',
+    width: '100%'
+};
 
 export default function PhaserGame() {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameRef = useRef<Phaser.Game | null>(null);
+    const { publicKey, connected } = useWallet();
 
     // UI State
     const [score, setScore] = useState(0);
@@ -20,6 +39,11 @@ export default function PhaserGame() {
     // Settings
     const [soundOn, setSoundOn] = useState(true);
     const [musicOn, setMusicOn] = useState(true);
+    const [globalLeaderboard, setGlobalLeaderboard] = useState<any[]>([]);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [playerRank, setPlayerRank] = useState<number | null>(null);
+    const [config, setConfig] = useState<any>(null);
+    const [isBanned, setIsBanned] = useState(false);
 
     useEffect(() => {
         const storedHighScore = localStorage.getItem('mpig-highscore');
@@ -59,23 +83,40 @@ export default function PhaserGame() {
                     setHighScore(currentHigh);
                 });
 
-                game.events.on('game-over', (finalScore: number) => {
+                game.events.on('game-over', async (finalScore: number) => {
+                    // Check local ban just in case
+                    if (isBanned) return;
+
                     setGameState(GameState.GAME_OVER);
                     setIsPaused(false);
+
+                    // Local highscore update
                     const currentHigh = parseInt(localStorage.getItem('mpig-highscore') || '0');
                     if (finalScore > currentHigh) {
                         setHighScore(finalScore);
                         localStorage.setItem('mpig-highscore', finalScore.toString());
                     }
-                });
 
-                game.events.on('level-up', (theme: string) => setLevelTheme(theme));
+                    // Global sync if connected
+                    if (connected && publicKey) {
+                        await submitScore(publicKey.toBase58(), finalScore);
+                    }
+
+                    // Refresh ranking list
+                    await fetchLeaderboard();
+                });
             }
         }
 
         initPhaser();
+        fetchLeaderboard();
+        fetchConfig();
+
+        // Poll for config changes (Maintenance, Announcements)
+        const configPoll = setInterval(fetchConfig, 10000);
 
         return () => {
+            clearInterval(configPoll);
             if (gameRef.current) {
                 gameRef.current.events.off('game-init');
                 gameRef.current.events.off('score-update');
@@ -150,6 +191,71 @@ export default function PhaserGame() {
         window.open(twitterUrl, '_blank');
     };
 
+    const fetchLeaderboard = async () => {
+        try {
+            const url = connected && publicKey
+                ? `/api/leaderboard?address=${publicKey.toBase58()}`
+                : '/api/leaderboard';
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data.leaderboard) setGlobalLeaderboard(data.leaderboard);
+            if (data.rank) setPlayerRank(data.rank);
+
+            // Anti-cheat check
+            if (connected && publicKey) {
+                const me = data.leaderboard?.find((p: any) => p.wallet_address === publicKey.toBase58());
+                if (me?.is_banned) {
+                    setIsBanned(true);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch leaderboard:', err);
+        }
+    };
+
+    const fetchConfig = async () => {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+            setConfig(data);
+
+            // Pass tuning to Phaser
+            if (gameRef.current) {
+                gameRef.current.events.emit('update-tuning', {
+                    speedMult: data.base_speed_multiplier,
+                    oinkMult: data.oink_multiplier,
+                    spawnMult: data.obstacle_spawn_rate
+                });
+
+                if (data.maintenance_mode && gameState === GameState.PLAYING) {
+                    gameRef.current.events.emit('request-pause');
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch config:', err);
+        }
+    };
+
+    const submitScore = async (address: string, finalScore: number) => {
+        try {
+            setIsSyncing(true);
+            await fetch('/api/leaderboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    wallet_address: address,
+                    high_score: finalScore,
+                    oinks: oinks
+                })
+            });
+        } catch (error) {
+            console.error('Failed to submit score:', error);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     return (
         <div className="relative w-full h-dvh flex items-center justify-center overflow-hidden bg-black">
             {/* The Actual Canvas Wrapper */}
@@ -158,7 +264,51 @@ export default function PhaserGame() {
                 {/* Main HUD Overlay - Contained inside the aspect ratio box */}
                 <div className="absolute inset-0 pointer-events-none flex flex-col font-['var(--font-orbitron)'] z-10">
 
+                    {/* Announcement Ticker */}
+                    {config?.announcement_text && !config.maintenance_mode && (
+                        <div className="w-full bg-[#14F195]/20 backdrop-blur-md border-b border-[#14F195]/30 overflow-hidden py-1 pointer-events-auto">
+                            <div className="whitespace-nowrap flex animate-marquee">
+                                <span className="text-[7px] font-black text-[#14F195] tracking-[4px] uppercase px-4 italic">
+                                    {config.announcement_text} • {config.announcement_text} • {config.announcement_text}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Top HUD - Mobile Optimized */}
+                    {/* 1. Maintenance Screen */}
+                    {config?.maintenance_mode && (
+                        <div className="absolute inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center pointer-events-auto">
+                            <div className="w-24 h-24 border-2 border-red-500/20 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-[0_0_50px_rgba(255,0,0,0.2)]">
+                                <span className="text-5xl">🛑</span>
+                            </div>
+                            <h2 className="text-3xl font-black text-red-500 tracking-[8px] uppercase mb-4">MISSION SUSPENDED</h2>
+                            <p className="text-white/40 text-[10px] font-black tracking-[3px] uppercase max-w-[250px] leading-relaxed italic mb-10">
+                                Command terminal is undergoing maintenance protocols. Standby for reconnection.
+                            </p>
+                            <Link href="/" className="px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-white/60 text-[8px] font-black tracking-[4px] uppercase hover:bg-white/10 transition-all">
+                                EXIT TERMINAL
+                            </Link>
+                        </div>
+                    )}
+
+                    {/* 2. Ban Screen */}
+                    {isBanned && (
+                        <div className="absolute inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center pointer-events-auto">
+                            <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mb-8 animate-bounce">
+                                <span className="text-5xl">🚫</span>
+                            </div>
+                            <h2 className="text-3xl font-black text-red-500 tracking-[8px] uppercase mb-4">ACCESS TERMINATED</h2>
+                            <p className="text-white/40 text-[10px] font-black tracking-[3px] uppercase max-w-[250px] leading-relaxed italic mb-10">
+                                Your wallet has been blacklisted for violating mission protocols.
+                            </p>
+                            <Link href="/" className="px-8 py-4 bg-white/5 border border-white/10 rounded-xl text-white/60 text-[8px] font-black tracking-[4px] uppercase hover:bg-white/10 transition-all">
+                                RETURN TO CIVILIAN LIFE
+                            </Link>
+                        </div>
+                    )}
+
+                    {/* Pause/Game Over Screen Handling... */}
                     <header className="px-4 py-2 pt-[calc(env(safe-area-inset-top,0px)+1rem)] flex items-start justify-between w-full pointer-events-auto">
                         {/* Score & Oinks Top-Left */}
                         <div className="flex flex-col gap-2">
@@ -270,14 +420,29 @@ export default function PhaserGame() {
                                     <p className="text-[#FFD700] text-[8px] font-black uppercase tracking-[4px]">STACK $MPIG</p>
                                 </div>
 
-                                <div className="mt-8 py-2 px-4 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm group cursor-pointer active:scale-95 transition-all"
-                                    onClick={() => {
-                                        navigator.clipboard.writeText("Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump");
-                                        alert("CA Copied!");
-                                    }}>
-                                    <p className="text-white/40 text-[7px] uppercase tracking-[2px] font-black group-hover:text-white transition-colors">
-                                        CA: Ff7...pump <span className="ml-2 text-[#14F195]">COPY</span>
-                                    </p>
+                                <div className="mt-8 w-full flex flex-col gap-3">
+                                    <div className="relative group">
+                                        <div className="absolute -inset-0.5 bg-linear-to-r from-[#FFD700] to-[#B8860B] rounded-xl blur-xs opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                                        <WalletMultiButton style={WALLET_STYLES} />
+                                    </div>
+
+                                    {connected && publicKey && (
+                                        <div className="mt-2 py-2 px-4 rounded-full bg-[#14F195]/10 border border-[#14F195]/30">
+                                            <p className="text-[#14F195] text-[7px] uppercase tracking-[2px] font-black text-center">
+                                                IDENTITY SECURED: {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="py-2 px-4 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm group cursor-pointer active:scale-95 transition-all text-center"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText("Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump");
+                                            alert("CA Copied!");
+                                        }}>
+                                        <p className="text-white/40 text-[7px] uppercase tracking-[2px] font-black group-hover:text-white transition-colors">
+                                            CA: Ff7...pump <span className="ml-2 text-[#14F195]">COPY</span>
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -309,9 +474,53 @@ export default function PhaserGame() {
                             </div>
 
                             <div className="w-full max-w-[320px] animate-slide-in-up">
-                                <div className="w-full bg-[#14F195]/10 rounded-2xl py-3 px-4 mb-6 border border-[#14F195]/20 backdrop-blur-sm flex justify-between items-center">
+                                <div className="w-full bg-[#14F195]/10 rounded-2xl py-3 px-4 mb-4 border border-[#14F195]/20 backdrop-blur-sm flex justify-between items-center">
                                     <span className="text-[9px] uppercase tracking-[3px] text-[#14F195] font-black">TOTAL OINKS</span>
                                     <span className="text-2xl font-black text-[#14F195] drop-shadow-[0_0_10px_rgba(20,241,149,0.3)]">{oinks}</span>
+                                </div>
+
+                                {/* Individual Rank Display */}
+                                <div className="w-full bg-white/5 rounded-2xl p-4 mb-4 border border-white/10 backdrop-blur-sm flex flex-col items-center justify-center min-h-[100px] relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-linear-to-b from-[#14F195]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                    <h3 className="text-[8px] uppercase tracking-[4px] text-white/40 font-black mb-3">GLOBAL RANKING</h3>
+
+                                    {connected ? (
+                                        <div className="flex flex-col items-center animate-zoom-in">
+                                            <span className="text-4xl font-black italic text-[#14F195] drop-shadow-[0_0_15px_rgba(20,241,149,0.5)]">
+                                                #{playerRank || '??'}
+                                            </span>
+                                            <span className="text-[7px] text-white/60 uppercase tracking-[2px] font-bold mt-2">OUT OF ALL MISSIONS</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-3">
+                                            <span className="text-[10px] text-red-500/80 font-black uppercase tracking-[2px] text-center animate-pulse px-4">
+                                                IDENTITY NOT SECURED
+                                            </span>
+                                            <button
+                                                onClick={() => document.querySelector('.wallet-adapter-button-trigger')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))}
+                                                className="text-[8px] text-[#14F195] font-black uppercase tracking-[2px] underline hover:text-white transition-colors"
+                                            >
+                                                CONNECT TO SAVE RANK
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {isSyncing && (
+                                        <div className="absolute bottom-2 right-3 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[#14F195] animate-ping" />
+                                            <span className="text-[6px] text-[#14F195] font-black tracking-widest uppercase">SYNCING</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 mb-6">
+                                    <Link href="/profile" className="h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-all active:scale-95 group">
+                                        <span className="text-[8px] font-black text-white/60 group-hover:text-white uppercase tracking-[2px]">MY PROFILE</span>
+                                    </Link>
+                                    <Link href="/leaderboard" className="h-10 bg-[#14F195]/5 border border-[#14F195]/20 rounded-xl flex items-center justify-center hover:bg-[#14F195]/10 transition-all active:scale-95 group">
+                                        <span className="text-[8px] font-black text-[#14F195] uppercase tracking-[2px]">HALL OF FAME</span>
+                                    </Link>
                                 </div>
 
                                 <div className="flex flex-col w-full gap-3">

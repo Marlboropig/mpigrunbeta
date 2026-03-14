@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Orbitron, Sora } from "next/font/google";
 import "./globals.css";
+import '@solana/wallet-adapter-react-ui/styles.css';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,6 +48,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { SolanaProvider } from "@/components/SolanaProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -57,7 +60,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${sora.variable} antialiased`}
       >
-        {children}
+        <SolanaProvider>
+          {children}
+        </SolanaProvider>
       </body>
     </html>
   );

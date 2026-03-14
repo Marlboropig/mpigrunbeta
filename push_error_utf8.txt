@@ -1,0 +1,35 @@
+﻿git : remote: error: GH013: 
+Repository rule violations 
+found for refs/heads/main.    
+    
+At line:1 char:1
++ git push -u origin main > 
+push_error.txt 2>&1 ; cat 
+push_error.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : 
+    NotSpecified: (remote: e  
+  rror: ...s/main.        :   
+ String) [], RemoteExcepti    
+on
+    + FullyQualifiedErrorId : 
+    NativeCommandError
+ 
+remote: Review all repository 
+rules at https://github.com/Ma
+rlboropig/mpigrunbeta/rules?re
+f=refs%2Fheads%2Fmain        
+remote: 
+remote: - Changes must be 
+made through a pull request.  
+      
+remote: 
+To https://github.com/Marlboro
+pig/mpigrunbeta.git
+ ! [remote rejected] main -> 
+main (push declined due to 
+repository rule violations)
+error: failed to push some 
+refs to 'https://github.com/Ma
+rlboropig/mpigrunbeta.git'
