@@ -53,12 +53,20 @@ export class MainScene extends Phaser.Scene {
   private bgMusic?: Phaser.Sound.BaseSound;
   private audioCtx?: AudioContext;
 
+  private selectedSkinUrl: string = '/assets/mpig.png';
+
   constructor() {
     super('MainScene');
   }
 
+  init(data: { skinUrl?: string }) {
+    if (data?.skinUrl) {
+      this.selectedSkinUrl = data.skinUrl;
+    }
+  }
+
   preload() {
-    this.load.image('mpig', '/assets/mpig.png');
+    this.load.image('mpig', this.selectedSkinUrl);
     this.load.image('background', '/assets/background.png');
     this.load.image('rekt_zone', '/assets/rekt_zone.svg');
     this.load.image('safe_gap', '/assets/safe_gap.svg');

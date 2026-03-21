@@ -118,7 +118,24 @@ export async function GET(request: Request) {
             .eq('id', 'main')
             .single();
 
-        if (err2) throw err2; // Handle config fetch error
+        if (err2) throw err2;
+
+        // NEW: Calculate Economy Stats
+        const { data: scores } = await supabase.from('tournament_scores').select('tournament_id').eq('has_paid', true);
+        const { data: tourData } = await supabase.from('tournaments').select('id, entry_fee_mpig');
+        let tournamentRevenue = 0;
+        scores?.forEach(s => {
+            const t = tourData?.find(tour => tour.id === s.tournament_id);
+            if (t) tournamentRevenue += (t.entry_fee_mpig || 0);
+        });
+
+        const { data: inventory } = await supabase.from('user_inventory').select('skin_id');
+        const { data: skinData } = await supabase.from('skins').select('id, price_mpig');
+        let skinRevenue = 0;
+        inventory?.forEach(i => {
+            const s = skinData?.find(sk => sk.id === i.skin_id);
+            if (s) skinRevenue += (s.price_mpig || 0);
+        });
 
         const totalOinks = allPlayers.reduce((sum, p) => sum + (p.oinks || 0), 0);
         const highestScore = Math.max(...allPlayers.map(p => p.high_score || 0), 0);
@@ -127,7 +144,10 @@ export async function GET(request: Request) {
             stats: {
                 totalPlayers: allPlayers.length,
                 totalOinks,
-                highestScore
+                highestScore,
+                tournamentRevenue,
+                skinRevenue,
+                totalRevenue: tournamentRevenue + skinRevenue
             },
             players: allPlayers,
             config

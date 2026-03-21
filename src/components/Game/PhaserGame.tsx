@@ -4,9 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { GameConfig } from '@/game/config';
 import { MainScene, GameState } from '@/game/scenes/MainScene';
 import Link from 'next/link';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import bs58 from 'bs58';
+import { 
+    createTransferCheckedInstruction, 
+    getAssociatedTokenAddress, 
+    createAssociatedTokenAccountInstruction 
+} from '@solana/spl-token';
+import { Transaction, PublicKey } from '@solana/web3.js';
 
 // Base style for wallet button overrides
 const WALLET_STYLES = {
@@ -27,11 +33,20 @@ const WALLET_STYLES = {
 export default function PhaserGame() {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameRef = useRef<Phaser.Game | null>(null);
-    const { publicKey, connected, signMessage } = useWallet();
+    const { publicKey, connected, signMessage, sendTransaction } = useWallet();
+    const { connection } = useConnection();
 
-    // Auth State
+    // Auth & Payment State
     const [authToken, setAuthToken] = useState<string | null>(null);
     const [isSigning, setIsSigning] = useState(false);
+    const [hasPaid, setHasPaid] = useState(false);
+    const [isPaying, setIsPaying] = useState(false);
+
+    // Skin & Inventory State
+    const [isSkinShopOpen, setIsSkinShopOpen] = useState(false);
+    const [shopSkins, setShopSkins] = useState<any[]>([]);
+    const [inventory, setInventory] = useState<any[]>([]);
+    const [selectedSkin, setSelectedSkin] = useState<any>(null);
 
     // UI State
     const [score, setScore] = useState(0);
@@ -40,6 +55,7 @@ export default function PhaserGame() {
     const [highScore, setHighScore] = useState(0);
     const [levelTheme, setLevelTheme] = useState('Neon');
     const [isPaused, setIsPaused] = useState(false);
+    const [status, setStatus] = useState('');
 
     // Settings
     const [soundOn, setSoundOn] = useState(true);
@@ -49,6 +65,10 @@ export default function PhaserGame() {
     const [playerRank, setPlayerRank] = useState<number | null>(null);
     const [config, setConfig] = useState<any>(null);
     const [isBanned, setIsBanned] = useState(false);
+
+    // Tournament State
+    const [tournaments, setTournaments] = useState<any[]>([]);
+    const [activeTournament, setActiveTournament] = useState<string>('00000000-0000-0000-0000-000000000000');
 
     useEffect(() => {
         const storedHighScore = localStorage.getItem('mpig-highscore');
@@ -119,6 +139,31 @@ export default function PhaserGame() {
         initPhaser();
         fetchLeaderboard();
         fetchConfig();
+        
+        // Fetch Tournaments
+        const fetchTournaments = async () => {
+            const res = await fetch('/api/tournaments');
+            if (res.ok) {
+                const data = await res.json();
+                setTournaments(data.filter((t: any) => t.is_active));
+            }
+        };
+        fetchTournaments();
+
+        // Fetch Skins
+        const fetchSkins = async () => {
+            const res = await fetch('/api/skins');
+            if (res.ok) setShopSkins(await res.json());
+        };
+        fetchSkins();
+        
+        const fetchMyInventory = async () => {
+            if (publicKey) {
+                const res = await fetch(`/api/skins?action=INVENTORY&address=${publicKey.toBase58()}`);
+                if (res.ok) setInventory(await res.json());
+            }
+        };
+        if (connected) fetchMyInventory();
 
         // Poll for config changes (Maintenance, Announcements)
         const configPoll = setInterval(fetchConfig, 10000);
@@ -172,8 +217,13 @@ export default function PhaserGame() {
     };
 
     const handleActionInPhaser = () => {
-        if (gameRef.current) {
-            gameRef.current.events.emit('request-action');
+        if (!gameRef.current) return;
+        const mainScene = gameRef.current.scene.getScene('MainScene') as any;
+        if (mainScene) {
+            // Restart with the selected skin
+            mainScene.scene.restart({ skinUrl: selectedSkin?.image_url || '/assets/mpig.png' });
+            setGameState(GameState.PLAYING);
+            setIsPaused(false);
         }
     };
 
@@ -212,11 +262,124 @@ export default function PhaserGame() {
         }
     };
 
-    const handleStartClick = () => {
-        if (connected && !authToken) {
+    const handleStartClick = async () => {
+        if (!connected) return;
+
+        // 1. Check if tournament requires a fee and if paid
+        const selectedT = tournaments.find(t => t.id === activeTournament);
+        const fee = selectedT?.entry_fee_mpig || 0;
+
+        if (fee > 0 && !hasPaid) {
+            handlePayEntry(fee);
+            return;
+        }
+
+        if (!authToken) {
             handleSignToPlay();
         } else {
             handleActionInPhaser();
+        }
+    };
+
+    const handlePayEntry = async (amount: number) => {
+        if (!publicKey || !sendTransaction) return;
+        setIsPaying(true);
+        setStatus('Initiating Payment...');
+
+        try {
+            const MPIG_MINT = new PublicKey(process.env.NEXT_PUBLIC_MPIG_MINT || 'Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump');
+            const TREASURY = new PublicKey(process.env.NEXT_PUBLIC_ADMIN_WALLET || 'DtBk7Gm7mxzijoiyeT71caEWA3Rf6EFGdujt79ftS1VG');
+            
+            const senderATA = await getAssociatedTokenAddress(MPIG_MINT, publicKey);
+            const treasuryATA = await getAssociatedTokenAddress(MPIG_MINT, TREASURY);
+
+            const transaction = new Transaction();
+
+            // Note: In detailed apps, we should check if treasuryATA exists, 
+            // but for this MVP we assume the treasury is setup correctly with the token.
+            
+            transaction.add(
+                createTransferCheckedInstruction(
+                    senderATA,
+                    MPIG_MINT,
+                    treasuryATA,
+                    publicKey,
+                    amount * 1000000, // Assuming 6 decimals like most SPL tokens
+                    6
+                )
+            );
+
+            const signature = await sendTransaction(transaction, connection);
+            setStatus('Confirming Chain...');
+            
+            // Verify with our backend
+            const verifyRes = await fetch('/api/tournaments/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    txHash: signature,
+                    walletAddress: publicKey.toBase58(),
+                    tournamentId: activeTournament
+                })
+            });
+
+            if (verifyRes.ok) {
+                setHasPaid(true);
+                setStatus('Payment Verified!');
+                // Automatically proceed to sign or start
+                if (!authToken) handleSignToPlay();
+                else handleActionInPhaser();
+            } else {
+                const err = await verifyRes.json();
+                alert(`Verification Error: ${err.error}`);
+            }
+        } catch (err: any) {
+            console.error('Payment failed:', err);
+            alert(`Payment Failed: ${err.message}`);
+        } finally {
+            setIsPaying(false);
+            setTimeout(() => setStatus(''), 5000);
+        }
+    };
+
+    const handlePurchaseSkin = async (skin: any) => {
+        if (!publicKey || !sendTransaction) return;
+        setIsPaying(true);
+        setStatus(`Unlocking ${skin.name}...`);
+        
+        try {
+            if (skin.price_mpig > 0) {
+                // Same transaction logic as Phase 2
+                const MPIG_MINT = new PublicKey(process.env.NEXT_PUBLIC_MPIG_MINT || 'Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump');
+                const TREASURY = new PublicKey(process.env.NEXT_PUBLIC_ADMIN_WALLET || 'DtBk7Gm7mxzijoiyeT71caEWA3Rf6EFGdujt79ftS1VG');
+                const senderATA = await getAssociatedTokenAddress(MPIG_MINT, publicKey);
+                const treasuryATA = await getAssociatedTokenAddress(MPIG_MINT, TREASURY);
+                const transaction = new Transaction();
+                transaction.add(
+                    createTransferCheckedInstruction(
+                        senderATA, MPIG_MINT, treasuryATA, publicKey,
+                        skin.price_mpig * 1000000, 6
+                    )
+                );
+                await sendTransaction(transaction, connection);
+            }
+
+            const res = await fetch('/api/skins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'PURCHASE', skin_id: skin.id, wallet_address: publicKey.toBase58() })
+            });
+
+            if (res.ok) {
+                setInventory(prev => [...prev, skin]);
+                setSelectedSkin(skin);
+                setStatus('Skin Unlocked!');
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsPaying(false);
+            setTimeout(() => setStatus(''), 5000);
         }
     };
 
@@ -252,14 +415,16 @@ export default function PhaserGame() {
     const fetchLeaderboard = async () => {
         try {
             const url = connected && publicKey
-                ? `/api/leaderboard?address=${publicKey.toBase58()}`
-                : '/api/leaderboard';
+                ? `/api/leaderboard?address=${publicKey.toBase58()}&tournament_id=${activeTournament}`
+                : `/api/leaderboard?tournament_id=${activeTournament}`;
             const res = await fetch(url);
             const data = await res.json();
 
-            if (data.leaderboard) setGlobalLeaderboard(data.leaderboard);
-            if (data.rank) setPlayerRank(data.rank);
-
+            if (res.ok) {
+                setGlobalLeaderboard(data.leaderboard);
+                setPlayerRank(data.rank);
+                setHasPaid(data.has_paid);
+            }
             // Anti-cheat check
             if (connected && publicKey) {
                 const me = data.leaderboard?.find((p: any) => p.wallet_address === publicKey.toBase58());
@@ -309,7 +474,8 @@ export default function PhaserGame() {
                 body: JSON.stringify({
                     wallet_address: address,
                     high_score: finalScore,
-                    oinks: oinks
+                    oinks: oinks,
+                    tournament_id: activeTournament
                 })
             });
         } catch (error) {
@@ -468,15 +634,61 @@ export default function PhaserGame() {
                             <div className="animate-fade-in text-center flex flex-col items-center w-full max-w-[320px]">
                                 <button
                                     onClick={handleStartClick}
-                                    disabled={isSigning}
+                                    disabled={isSigning || isPaying}
                                     className="pill-button-gold w-full h-16 text-lg font-black tracking-[8px] hover:scale-[1.05] transition-all active:scale-95 shadow-[0_10px_40px_rgba(212,175,55,0.4)] border-2 border-[#FFE44D]/30"
                                 >
-                                    {isSigning ? 'AUTHENTICATING...' : (connected && !authToken) ? 'SIGN SECURELY' : 'TAP TO START'}
+                                    {isPaying ? 'PAYING...' : isSigning ? 'AUTHENTICATING...' : (connected && !hasPaid && tournaments.find(t => t.id === activeTournament)?.entry_fee_mpig > 0) ? 'PAY TO ENTER' : (connected && !authToken) ? 'SIGN SECURELY' : 'TAP TO START'}
                                 </button>
+
+                                {/* Tournament Selection */}
+                                {tournaments.length > 1 && (
+                                    <div className="mt-6 w-full space-y-2">
+                                        <p className="text-[7px] text-white/30 uppercase tracking-[3px] font-black">SELECT COMBAT ZONE</p>
+                                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                                            {tournaments.map((t) => (
+                                                <button
+                                                    key={t.id}
+                                                    onClick={() => {
+                                                        setActiveTournament(t.id);
+                                                        // Refresh leaderboard when changing tournament
+                                                        fetchLeaderboard();
+                                                    }}
+                                                    className={`px-4 py-2 rounded-lg border text-[8px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTournament === t.id ? 'bg-[#FFD700] text-black border-[#FFD700]' : 'bg-white/5 text-white/40 border-white/10 hover:border-white/20'}`}
+                                                >
+                                                    {t.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="mt-4 animate-pulse flex flex-col items-center">
                                     <span className="text-[10px] text-[#14F195] font-black tracking-[4px] uppercase">TAP TO JUMP</span>
                                     <span className="text-[7px] text-white/40 uppercase tracking-[2px]">AVOID THE RED CANDLES</span>
+                                </div>
+                                
+                                <div className="mt-8 flex gap-4">
+                                    <button 
+                                        onClick={() => setIsSkinShopOpen(true)}
+                                        className="px-6 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[3px] text-white/60 hover:text-white transition-all flex items-center gap-2 pointer-events-auto"
+                                    >
+                                        ✨ SKINS
+                                    </button>
+                                    <Link href="/leaderboard" className="px-6 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[3px] text-white/60 hover:text-white transition-all pointer-events-auto">
+                                        🏆 RANKS
+                                    </Link>
+                                </div>
+                                
+                                <div className="mt-8 flex gap-4">
+                                    <button 
+                                        onClick={() => setIsSkinShopOpen(true)}
+                                        className="px-6 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[3px] text-white/60 hover:text-white transition-all flex items-center gap-2 pointer-events-auto"
+                                    >
+                                        ✨ SKINS
+                                    </button>
+                                    <Link href="/leaderboard" className="px-6 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[3px] text-white/60 hover:text-white transition-all pointer-events-auto">
+                                        🏆 RANKS
+                                    </Link>
                                 </div>
 
                                 <div className="flex flex-col gap-1 items-center mt-6 opacity-80">
@@ -615,7 +827,44 @@ export default function PhaserGame() {
                         </div>
                     </div>
                 )}
-            </div>
-        </div>
+             </div>
+ 
+             {/* Skin Shop Modal */}
+             {isSkinShopOpen && (
+                 <div className="absolute inset-0 bg-black/80 backdrop-blur-3xl z-[300] flex flex-col p-6 animate-fade-in font-['var(--font-orbitron)'] pointer-events-auto">
+                     <div className="flex justify-between items-center mb-8 px-4">
+                         <div>
+                             <h3 className="text-xl font-black text-[#14F195] tracking-[8px] uppercase">SKIN WORKSHOP</h3>
+                             <p className="text-[8px] text-white/40 uppercase tracking-[3px]">PREMIUM COMMANDER OVERLAYS</p>
+                         </div>
+                         <button onClick={() => setIsSkinShopOpen(false)} className="bg-white/5 p-4 rounded-full text-white/40 hover:text-white transition-all">CLOSE</button>
+                     </div>
+ 
+                     <div className="grid grid-cols-2 gap-4 overflow-y-auto px-4 pb-20 custom-scrollbar">
+                         {shopSkins.map((s) => {
+                             const isOwned = inventory.some(i => i.id === s.id);
+                             const isEquipped = selectedSkin?.id === s.id;
+                             return (
+                                 <div key={s.id} className={`p-4 bg-white/2 border-2 rounded-3xl flex flex-col items-center gap-4 transition-all ${isEquipped ? 'border-[#14F195] bg-[#14F195]/5 shadow-[0_0_30px_rgba(20,241,149,0.1)]' : 'border-white/5'}`}>
+                                     <div className="w-24 h-24 bg-black/40 rounded-2xl flex items-center justify-center p-4">
+                                         <img src={s.image_url} alt={s.name} className="w-full h-full object-contain pixel-art" />
+                                     </div>
+                                     <div className="text-center">
+                                         <p className="text-[10px] font-black tracking-widest text-white uppercase truncate w-full">{s.name}</p>
+                                         <p className={`text-[7px] font-black uppercase tracking-[2px] mt-1 ${s.rarity === 'LEGENDARY' ? 'text-[#FFD700]' : 'text-[#9945FF]'}`}>{s.rarity}</p>
+                                     </div>
+                                     <button 
+                                         onClick={() => isOwned ? setSelectedSkin(s) : handlePurchaseSkin(s)}
+                                         className={`w-full py-2 rounded-xl text-[8px] font-black uppercase tracking-[4px] shadow-lg transition-all ${isEquipped ? 'bg-[#14F195] text-black shadow-[#14F195]/20' : isOwned ? 'bg-white/10 text-white' : 'bg-[#FFD700] text-black shadow-[#FFD700]/20 hover:scale-105 active:scale-95'}`}
+                                     >
+                                         {isEquipped ? 'EQUIPPED' : isOwned ? 'EQUIP' : `${s.price_mpig} MPIG`}
+                                     </button>
+                                 </div>
+                             )
+                         })}
+                     </div>
+                 </div>
+             )}
+         </div>
     );
 }
