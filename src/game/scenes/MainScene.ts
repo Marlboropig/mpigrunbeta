@@ -55,35 +55,43 @@ export class MainScene extends Phaser.Scene {
 
   private selectedSkinUrl: string = '/assets/mpig.png';
 
+  private shouldAutoStart: boolean = false;
+
   constructor() {
     super('MainScene');
   }
 
-  init(data: { skinUrl?: string }) {
-    if (data?.skinUrl) {
+  init(data: { skinUrl?: string, autoStart?: boolean }) {
+    if (data.skinUrl) {
       this.selectedSkinUrl = data.skinUrl;
+    } else {
+      this.selectedSkinUrl = '/assets/mpig.png';
     }
+    this.shouldAutoStart = data.autoStart || false;
   }
 
   preload() {
-    this.load.image('mpig', this.selectedSkinUrl);
+    // 1. Load Dynamic Skin
+    this.load.image('mpig_skin', this.selectedSkinUrl);
+
+    // 2. Load Core Assets
     this.load.image('background', '/assets/background.png');
     this.load.image('rekt_zone', '/assets/rekt_zone.svg');
     this.load.image('safe_gap', '/assets/safe_gap.svg');
     this.load.image('sol_shape', '/assets/sol_particle.svg');
 
-    // Crypto Obstacles
+    // 3. Crypto Obstacles
     this.load.image('red_candle', '/assets/red_candle.svg');
     this.load.image('bomb', '/assets/bomb.svg');
     this.load.image('rug_trap', '/assets/rug_trap.svg');
 
-    // Crypto Rewards
+    // 4. Crypto Rewards
     this.load.image('coin', '/assets/coin.svg');
     this.load.image('solana_logo', '/assets/solana_logo.svg');
     this.load.image('green_candle', '/assets/green_candle.svg');
-    this.load.image('mpig_logo', '/assets/mpig.png'); // Using original mpig as rare reward
+    this.load.image('mpig_logo', '/assets/mpig.png');
 
-    // Load User Provided Audio
+    // 5. Audio Protocols
     this.load.audio('bgm', '/assets/audio/bgm.mp3');
     this.load.audio('sfx-jump', '/assets/audio/sfx-jump.mp3');
     this.load.audio('sfx-coin', '/assets/audio/sfx-coin.mp3');
@@ -129,7 +137,7 @@ export class MainScene extends Phaser.Scene {
     });
 
     // 4. MPIG
-    this.mpig = this.physics.add.sprite(width * 0.25, height / 2, 'mpig').setScale(0.1);
+    this.mpig = this.physics.add.sprite(width * 0.25, height / 2, 'mpig_skin').setScale(0.1);
     this.mpig.setCollideWorldBounds(true);
     this.mpig.setBodySize(this.mpig.width * 0.55, this.mpig.height * 0.55);
     (this.mpig.body as Phaser.Physics.Arcade.Body).allowGravity = false;
@@ -178,8 +186,16 @@ export class MainScene extends Phaser.Scene {
     this.game.events.on('request-restart', () => {
       if (this.scene.isActive()) {
         this.state = GameState.IDLE;
-        this.scene.restart();
+        this.scene.restart({ autoStart: true });
       }
+    });
+
+    this.game.events.on('request-start-mission', (data: { skinUrl?: string }) => {
+      this.state = GameState.IDLE;
+      this.scene.restart({ 
+          skinUrl: data?.skinUrl || this.selectedSkinUrl, 
+          autoStart: true 
+      });
     });
 
     this.game.events.on('update-tuning', (data: any) => {
@@ -188,6 +204,10 @@ export class MainScene extends Phaser.Scene {
         this.resetSpawnTimer();
       }
     });
+
+    if (this.shouldAutoStart) {
+      this.time.delayedCall(150, () => this.startGame());
+    }
 
     this.game.events.emit('game-init');
   }

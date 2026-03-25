@@ -213,7 +213,6 @@ export default function PhaserGame() {
             localStorage.removeItem('mpig-auth-token');
             setHighScore(0);
         } else {
-            // When connection established or tournament changed, fetch fresh stats
             const fetchMyStats = async () => {
                 if (publicKey) {
                     const tourId = activeTournament || '00000000-0000-0000-0000-000000000000';
@@ -221,10 +220,7 @@ export default function PhaserGame() {
                     if (res.ok) {
                         const data = await res.json();
                         setHasPaid(data.has_paid || false);
-                        // Find player score in global record or rank fetch
-                        // If player has a score in this tournament, use it
-                        const { data: scoreCheck } = await fetch(`/api/leaderboard?address=${publicKey.toBase58()}&tournament_id=${tourId}`).then(r => r.json());
-                        // Actually the API doesn't return the full score directly in 'rank', let's check the leaderboard list
+                        
                         const myEntry = data.leaderboard?.find((p: any) => p.wallet_address === publicKey.toBase58());
                         if (myEntry) {
                             setHighScore(myEntry.high_score || 0);
@@ -264,13 +260,10 @@ export default function PhaserGame() {
 
     const handleActionInPhaser = () => {
         if (!gameRef.current) return;
-        const mainScene = gameRef.current.scene.getScene('MainScene') as any;
-        if (mainScene) {
-            // Restart with the selected skin
-            mainScene.scene.restart({ skinUrl: selectedSkin?.image_url || '/assets/mpig.png' });
-            setGameState(GameState.PLAYING);
-            setIsPaused(false);
-        }
+        // Tell Phaser to start the mission - this will trigger restart and then game-start event
+        gameRef.current.events.emit('request-start-mission', { 
+            skinUrl: selectedSkin?.image_url || '/assets/mpig.png' 
+        });
     };
 
     const handleSignToPlay = async () => {
@@ -309,7 +302,12 @@ export default function PhaserGame() {
     };
 
     const handleStartClick = async () => {
-        if (!connected) return;
+        if (!connected) {
+            // Trigger wallet connection if not connected
+            const walletBtn = document.querySelector('.wallet-adapter-button-trigger') as HTMLButtonElement;
+            if (walletBtn) walletBtn.click();
+            return;
+        }
 
         // 1. Check if tournament requires a fee and if paid
         const selectedT = tournaments.find(t => t.id === activeTournament);
@@ -678,13 +676,13 @@ export default function PhaserGame() {
                         {/* Interactive Area at the bottom */}
                         <div className="absolute inset-x-0 bottom-0 pb-20 pt-10 bg-linear-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center justify-end px-6">
                             <div className="animate-fade-in text-center flex flex-col items-center w-full max-w-[320px]">
-                                <button
-                                    onClick={handleStartClick}
-                                    disabled={isSigning || isPaying}
-                                    className="pill-button-gold w-full h-16 text-lg font-black tracking-[8px] hover:scale-[1.05] transition-all active:scale-95 shadow-[0_10px_40px_rgba(212,175,55,0.4)] border-2 border-[#FFE44D]/30"
-                                >
-                                    {isPaying ? 'PAYING...' : isSigning ? 'AUTHENTICATING...' : (connected && !hasPaid && tournaments.find(t => t.id === activeTournament)?.entry_fee_mpig > 0) ? 'PAY TO ENTER' : (connected && !authToken) ? 'SIGN SECURELY' : 'TAP TO START'}
-                                </button>
+                                    <button
+                                        onClick={handleStartClick}
+                                        disabled={isSigning || isPaying}
+                                        className="pill-button-gold w-full h-16 text-lg font-black tracking-[8px] hover:scale-[1.05] transition-all active:scale-95 shadow-[0_10px_40px_rgba(212,175,55,0.4)] border-2 border-[#FFE44D]/30"
+                                    >
+                                        {!connected ? 'CONNECT TO START' : isPaying ? 'PAYING...' : isSigning ? 'AUTHENTICATING...' : (!hasPaid && tournaments.find(t => t.id === activeTournament)?.entry_fee_mpig > 0) ? `PAY ${tournaments.find(t => t.id === activeTournament)?.entry_fee_mpig} MPIG` : (!authToken) ? 'SIGN SECURELY' : 'TAP TO START'}
+                                    </button>
 
                                 {/* Tournament Selection */}
                                 {tournaments.length > 1 && (
@@ -711,18 +709,6 @@ export default function PhaserGame() {
                                 <div className="mt-4 animate-pulse flex flex-col items-center">
                                     <span className="text-[10px] text-[#14F195] font-black tracking-[4px] uppercase">TAP TO JUMP</span>
                                     <span className="text-[7px] text-white/40 uppercase tracking-[2px]">AVOID THE RED CANDLES</span>
-                                </div>
-                                
-                                <div className="mt-8 flex gap-4">
-                                    <button 
-                                        onClick={() => setIsSkinShopOpen(true)}
-                                        className="px-6 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[3px] text-white/60 hover:text-white transition-all flex items-center gap-2 pointer-events-auto"
-                                    >
-                                        ✨ SKINS
-                                    </button>
-                                    <Link href="/leaderboard" className="px-6 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[3px] text-white/60 hover:text-white transition-all pointer-events-auto">
-                                        🏆 RANKS
-                                    </Link>
                                 </div>
                                 
                                 <div className="mt-8 flex gap-4">
