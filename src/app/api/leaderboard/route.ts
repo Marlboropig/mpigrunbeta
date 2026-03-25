@@ -10,35 +10,48 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
     const address = searchParams.get('address');
-    const tournament_id = searchParams.get('tournament_id') || '00000000-0000-0000-0000-000000000000';
+    const tournament_id_param = searchParams.get('tournament_id');
+    const isGlobal = !tournament_id_param;
+    const tournament_id = tournament_id_param || '00000000-0000-0000-0000-000000000000';
 
     try {
-        // 1. Fetch Rank and Payment Status if address provided
         let playerRank = null;
         let hasPaid = false;
         
+        // Target table: 'leaderboard' for global, 'tournament_scores' for specific
+        const targetTable = isGlobal ? 'leaderboard' : 'tournament_scores';
+
         if (address) {
-            // Updated rank query for specific tournament
             const { data: rankData, error: rankError } = await supabase
-                .from('tournament_scores')
-                .select('wallet_address, high_score, has_paid')
-                .eq('tournament_id', tournament_id)
+                .from(targetTable)
+                .select('wallet_address, high_score')
+                .match(isGlobal ? {} : { tournament_id })
                 .order('high_score', { ascending: false });
 
             if (!rankError && rankData) {
                 const index = rankData.findIndex(p => p.wallet_address === address);
                 if (index !== -1) {
                     playerRank = index + 1;
-                    hasPaid = rankData[index].has_paid || false;
                 }
+            }
+
+            // Check payment if tournament specific
+            if (!isGlobal) {
+                const { data: payData } = await supabase
+                    .from('tournament_scores')
+                    .select('has_paid')
+                    .eq('tournament_id', tournament_id)
+                    .eq('wallet_address', address)
+                    .single();
+                if (payData) hasPaid = payData.has_paid;
             }
         }
 
-        // 2. Fetch Leaderboard List
         const { data, error } = await supabase
-            .from('tournament_scores')
+            .from(targetTable)
             .select('wallet_address, high_score, username')
-            .eq('tournament_id', tournament_id)
+            .match(isGlobal ? {} : { tournament_id })
+            .gt('high_score', 0)
             .order('high_score', { ascending: false })
             .limit(limit);
 
