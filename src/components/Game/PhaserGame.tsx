@@ -157,13 +157,36 @@ export default function PhaserGame() {
         };
         fetchSkins();
         
+        const fetchMyStats = async () => {
+            if (publicKey) {
+                const tourId = activeTournament || '00000000-0000-0000-0000-000000000000';
+                const res = await fetch(`/api/leaderboard?address=${publicKey.toBase58()}&tournament_id=${tourId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.rank !== null && data.leaderboard) {
+                        // Find this player's data in the results or just trust the rank fetch data
+                        // The API returns 'rank' and 'has_paid' directly now
+                        const myEntry = data.leaderboard.find((p: any) => p.wallet_address === publicKey.toBase58());
+                        if (myEntry) {
+                            setHighScore(myEntry.high_score || 0);
+                            localStorage.setItem('mpig-highscore', (myEntry.high_score || 0).toString());
+                        }
+                    }
+                    if (data.has_paid !== undefined) setHasPaid(data.has_paid);
+                }
+            }
+        };
+
         const fetchMyInventory = async () => {
             if (publicKey) {
                 const res = await fetch(`/api/skins?action=INVENTORY&address=${publicKey.toBase58()}`);
                 if (res.ok) setInventory(await res.json());
             }
         };
-        if (connected) fetchMyInventory();
+        if (connected) {
+            fetchMyStats();
+            fetchMyInventory();
+        }
 
         // Poll for config changes (Maintenance, Announcements)
         const configPoll = setInterval(fetchConfig, 10000);
@@ -188,8 +211,31 @@ export default function PhaserGame() {
         if (!connected) {
             setAuthToken(null);
             localStorage.removeItem('mpig-auth-token');
+            setHighScore(0);
+        } else {
+            // When connection established or tournament changed, fetch fresh stats
+            const fetchMyStats = async () => {
+                if (publicKey) {
+                    const tourId = activeTournament || '00000000-0000-0000-0000-000000000000';
+                    const res = await fetch(`/api/leaderboard?address=${publicKey.toBase58()}&tournament_id=${tourId}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setHasPaid(data.has_paid || false);
+                        // Find player score in global record or rank fetch
+                        // If player has a score in this tournament, use it
+                        const { data: scoreCheck } = await fetch(`/api/leaderboard?address=${publicKey.toBase58()}&tournament_id=${tourId}`).then(r => r.json());
+                        // Actually the API doesn't return the full score directly in 'rank', let's check the leaderboard list
+                        const myEntry = data.leaderboard?.find((p: any) => p.wallet_address === publicKey.toBase58());
+                        if (myEntry) {
+                            setHighScore(myEntry.high_score || 0);
+                            localStorage.setItem('mpig-highscore', (myEntry.high_score || 0).toString());
+                        }
+                    }
+                }
+            };
+            fetchMyStats();
         }
-    }, [connected, publicKey]);
+    }, [connected, publicKey, activeTournament]);
 
     const togglePause = () => {
         if (gameRef.current) {
