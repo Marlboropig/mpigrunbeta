@@ -226,7 +226,7 @@ export default function AdminPage() {
     }
 
     return (
-        <main className="min-h-dvh bg-[#050505] text-white font-['var(--font-orbitron)'] relative overflow-hidden flex flex-col">
+        <main className="min-h-dvh bg-[#050505] text-white font-['var(--font-orbitron)'] relative overflow-x-hidden flex flex-col w-screen">
             {/* Nav Header */}
             <div className="w-full bg-black/60 border-b border-white/5 backdrop-blur-md px-6 md:px-10 py-6 flex justify-between items-center z-100">
                 <div className="flex items-center gap-4 md:gap-10">
@@ -515,7 +515,8 @@ export default function AdminPage() {
                                             🚀 EXPORT CSV REPORT
                                         </button>
                                     </div>
-                                    <table className="w-full text-left text-[10px] font-bold">
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="w-full text-left text-[10px] font-bold min-w-[600px] md:min-w-0">
                                         <thead className="bg-black/40 text-white/20 uppercase tracking-[3px] border-b border-white/5">
                                             <tr>
                                                 <th className="px-8 py-6">IDENTIFIED WINNER</th>
@@ -539,6 +540,7 @@ export default function AdminPage() {
                                             ))}
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
