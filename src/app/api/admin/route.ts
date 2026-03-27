@@ -86,6 +86,15 @@ export async function POST(request: Request) {
 
                 return NextResponse.json({ success: true, message: 'New season started: all player scores and oinks reset.' });
 
+            case 'VERIFY_ALL_PLAYERS':
+                const { error: verifyAllError } = await supabase
+                    .from('leaderboard')
+                    .update({ is_verified: true })
+                    .neq('wallet_address', ''); // Update all rows where wallet_address exists
+                
+                if (verifyAllError) throw verifyAllError;
+                return NextResponse.json({ success: true, message: 'All players verified successfully.' });
+
             default:
                 return NextResponse.json({ error: 'Unknown Action' }, { status: 400 });
         }
@@ -137,12 +146,14 @@ export async function GET(request: Request) {
             if (s) skinRevenue += (s.price_mpig || 0);
         });
 
-        const totalOinks = allPlayers.reduce((sum, p) => sum + (p.oinks || 0), 0);
-        const highestScore = Math.max(...allPlayers.map(p => p.high_score || 0), 0);
+        const verifiedPlayers = allPlayers.filter(p => p.is_verified);
+        const totalOinks = verifiedPlayers.reduce((sum, p) => sum + (p.oinks || 0), 0);
+        const highestScore = Math.max(...verifiedPlayers.map(p => p.high_score || 0), 0);
 
         return NextResponse.json({
             stats: {
                 totalPlayers: allPlayers.length,
+                verifiedPlayers: verifiedPlayers.length,
                 totalOinks,
                 highestScore,
                 tournamentRevenue,

@@ -54,6 +54,11 @@ export default function AdminPage() {
     const [config, setConfig] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [status, setStatus] = useState('');
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Modal State
     const [isTournamentModalOpen, setIsTournamentModalOpen] = useState(false);
@@ -196,7 +201,7 @@ export default function AdminPage() {
                     </div>
                     <h1 className="text-3xl font-black text-white tracking-[8px] uppercase mb-4">ACCESS DENIED</h1>
                     <p className="text-white/40 text-[10px] tracking-[4px] uppercase mb-10 italic leading-relaxed">ONLY COMMANDER WALLET RECOGNIZED AS AUTHORIZED COMMAND</p>
-                    <WalletMultiButton />
+                    {mounted ? <WalletMultiButton /> : <div className="h-12 w-full bg-white/5 animate-pulse rounded-xl" />}
                 </div>
             </main>
         );
@@ -245,7 +250,7 @@ export default function AdminPage() {
                 </div>
                 <div className="flex items-center gap-4 md:gap-6">
                     <div className="hidden md:block text-[10px] text-white/20 font-mono">{publicKey?.toBase58().slice(0, 10)}...</div>
-                    <WalletMultiButton />
+                    {mounted ? <WalletMultiButton /> : <div className="h-10 w-32 bg-white/5 animate-pulse rounded-xl" />}
                 </div>
             </div>
 
@@ -273,6 +278,9 @@ export default function AdminPage() {
                     <div className="mt-auto p-8 opacity-20 hover:opacity-100 transition-opacity">
                         <button onClick={() => { handleAction('START_NEW_SEASON'); setIsSidebarOpen(false); }} className="text-red-500 text-[10px] font-black tracking-[3px] uppercase flex items-center gap-3">
                             ⚠️ RESET SEASON
+                        </button>
+                        <button onClick={() => { handleAction('VERIFY_ALL_PLAYERS'); setIsSidebarOpen(false); }} className="mt-4 text-[#14F195] text-[10px] font-black tracking-[3px] uppercase flex items-center gap-3">
+                            ✓ VERIFY ALL PLAYERS
                         </button>
                     </div>
                 </div>

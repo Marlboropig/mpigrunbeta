@@ -583,7 +583,7 @@ export class MainScene extends Phaser.Scene {
 
     // Delay event to let physics and camera shake settle - prevents mobile main thread hang
     this.time.delayedCall(150, () => {
-      this.game.events.emit('game-over', this.score);
+      this.game.events.emit('game-over', { score: this.score, oinks: this.totalOinks });
     });
   }
 

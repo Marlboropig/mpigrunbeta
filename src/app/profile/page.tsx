@@ -10,6 +10,11 @@ export default function ProfilePage() {
     const [username, setUsername] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [status, setStatus] = useState('');
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         if (connected && publicKey) {
@@ -28,14 +33,14 @@ export default function ProfilePage() {
         setStatus('Authenticating...');
         try {
             let token = localStorage.getItem('mpig-auth-token');
-            
+
             // If no token exists, force them to sign
             if (!token) {
                 if (!signMessage) throw new Error("Wallet does not support signing.");
                 const message = "Sign this message to authenticate your MPIG game session.";
                 const messageBytes = new TextEncoder().encode(message);
                 const signature = await signMessage(messageBytes);
-                
+
                 const authRes = await fetch('/api/auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -45,7 +50,7 @@ export default function ProfilePage() {
                         message
                     })
                 });
-                
+
                 const authData = await authRes.json();
                 if (authData.token) {
                     token = authData.token;
@@ -58,7 +63,7 @@ export default function ProfilePage() {
             setStatus('Saving...');
             const res = await fetch('/api/leaderboard', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
@@ -68,6 +73,11 @@ export default function ProfilePage() {
                     update_only_username: true
                 })
             });
+
+            if (res.status === 401) {
+                localStorage.removeItem('mpig-auth-token');
+                throw new Error('Session expired. Please try again.');
+            }
 
             if (res.ok) setStatus('Username updated!');
             else throw new Error('Error saving username.');
@@ -94,7 +104,11 @@ export default function ProfilePage() {
                 <h1 className="text-3xl font-black text-white tracking-[8px] uppercase mb-2">PROFILE</h1>
                 <p className="text-white/40 text-[10px] tracking-[4px] uppercase mb-10 italic">SET YOUR IDENTITY</p>
 
-                {!connected ? (
+                {!mounted ? (
+                    <div className="flex flex-col items-center gap-6 py-10 opacity-0 md:opacity-100 italic text-white/10">
+                        LOADING WALLET...
+                    </div>
+                ) : !connected ? (
                     <div className="flex flex-col items-center gap-6 py-10">
                         <p className="text-white/60 text-xs text-center leading-relaxed">Connect your wallet to choose a username and track your global rank.</p>
                         <WalletMultiButton />

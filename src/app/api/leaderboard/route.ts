@@ -98,64 +98,78 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid wallet address or token mismatch' }, { status: 400 });
         }
 
+        // Check if user already exists to determine auto-verify and demotion
+        const { data: globalEntry } = await supabase
+            .from('leaderboard')
+            .select('high_score, is_verified')
+            .eq('wallet_address', wallet_address)
+            .single();
+
+        const isNewUser = !globalEntry;
+
         if (update_only_username) {
-            // Update in both legacy and tournament_scores
-            await supabase
-                .from('leaderboard')
-                .upsert({
-                    wallet_address,
-                    username,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'wallet_address' });
+            const upData: any = {
+                wallet_address,
+                username,
+                updated_at: new Date().toISOString()
+            };
+            
+            // Auto-verify ONLY if this is their first time "getting in"
+            if (isNewUser) {
+                upData.is_verified = true;
+            }
 
-            const { error: tsError } = await supabase
-                .from('tournament_scores')
-                .upsert({
-                    tournament_id,
-                    wallet_address,
-                    username,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'tournament_id,wallet_address' });
+            await supabase.from('leaderboard').upsert(upData, { onConflict: 'wallet_address' });
 
-            if (tsError) throw tsError;
+            // Also update in current tournament if any
+            if (tournament_id && tournament_id !== '00000000-0000-0000-0000-000000000000') {
+                await supabase
+                    .from('tournament_scores')
+                    .upsert({
+                        tournament_id,
+                        wallet_address,
+                        username,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'tournament_id,wallet_address' });
+            }
+
             return NextResponse.json({ success: true });
         }
 
-        // Logic check: only update tournament score if better
-        const { data: currentEntry, error: fetchError } = await supabase
+        // 1. Separate Logic for Global and Tournament High Scores
+        // Check current tournament record
+        const { data: tourneyEntry } = await supabase
             .from('tournament_scores')
             .select('high_score')
             .eq('tournament_id', tournament_id)
             .eq('wallet_address', wallet_address)
             .single();
 
-        if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+        const updates = [];
 
-        if (!currentEntry || high_score > currentEntry.high_score) {
-            // Always keep global stats in 'leaderboard' for lifetime records
-            await supabase
-                .from('leaderboard')
-                .upsert({
-                    wallet_address,
-                    high_score,
-                    oinks,
-                    username,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'wallet_address' });
+        // Only update global if it's actually higher than existing global high score
+        if (isNewUser || high_score > (globalEntry?.high_score || 0)) {
+            const upData: any = { wallet_address, high_score, oinks, updated_at: new Date().toISOString() };
+            if (username) upData.username = username;
+            
+            // Auto-verify if this is the first entry
+            if (isNewUser) {
+                upData.is_verified = true;
+            }
+            
+            updates.push(supabase.from('leaderboard').upsert(upData, { onConflict: 'wallet_address' }));
+        }
+            
+        // Only update tournament if it's higher than existing tournament high score
+        if (!tourneyEntry || high_score > (tourneyEntry.high_score || 0)) {
+            const upData: any = { tournament_id, wallet_address, high_score, oinks, updated_at: new Date().toISOString() };
+            if (username) upData.username = username;
 
-            // Update in tournament_scores
-            const { error: upsertError } = await supabase
-                .from('tournament_scores')
-                .upsert({
-                    tournament_id,
-                    wallet_address,
-                    high_score,
-                    oinks,
-                    username,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'tournament_id,wallet_address' });
+            updates.push(supabase.from('tournament_scores').upsert(upData, { onConflict: 'tournament_id,wallet_address' }));
+        }
 
-            if (upsertError) throw upsertError;
+        if (updates.length > 0) {
+            await Promise.all(updates);
             return NextResponse.json({ success: true, updated: true });
         }
 

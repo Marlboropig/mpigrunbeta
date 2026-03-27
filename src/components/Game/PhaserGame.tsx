@@ -70,6 +70,19 @@ export default function PhaserGame() {
     const [tournaments, setTournaments] = useState<any[]>([]);
     const [activeTournament, setActiveTournament] = useState<string>('00000000-0000-0000-0000-000000000000');
 
+    // Use Refs to provide "live" access to state inside Phaser listeners (fixes stale closure bug)
+    const walletRef = useRef({ publicKey, connected });
+    const authRef = useRef(authToken);
+    const tournamentRef = useRef(activeTournament);
+    const bannedRef = useRef(isBanned);
+
+    useEffect(() => {
+        walletRef.current = { publicKey, connected };
+        authRef.current = authToken;
+        tournamentRef.current = activeTournament;
+        bannedRef.current = isBanned;
+    }, [publicKey, connected, authToken, activeTournament, isBanned]);
+
     useEffect(() => {
         const storedHighScore = localStorage.getItem('mpig-highscore');
         if (storedHighScore) setHighScore(parseInt(storedHighScore));
@@ -111,12 +124,15 @@ export default function PhaserGame() {
                     setHighScore(currentHigh);
                 });
 
-                game.events.on('game-over', async (finalScore: number) => {
-                    // Check local ban just in case
-                    if (isBanned) return;
+                game.events.on('game-over', async (data: { score: number, oinks: number }) => {
+                    // Check live ban status
+                    if (bannedRef.current) return;
 
                     setGameState(GameState.GAME_OVER);
                     setIsPaused(false);
+
+                    const finalScore = data.score;
+                    const finalOinks = data.oinks;
 
                     // Local highscore update
                     const currentHigh = parseInt(localStorage.getItem('mpig-highscore') || '0');
@@ -125,13 +141,13 @@ export default function PhaserGame() {
                         localStorage.setItem('mpig-highscore', finalScore.toString());
                     }
 
-                    // Global sync if connected
-                    if (connected && publicKey) {
-                        await submitScore(publicKey.toBase58(), finalScore);
+                    // Global sync if connected using live Refs
+                    const currentWallet = walletRef.current;
+                    if (currentWallet.connected && currentWallet.publicKey) {
+                        await submitScore(currentWallet.publicKey.toBase58(), finalScore, finalOinks);
+                        // Refresh ranking list with the correct tournament ID
+                        await fetchLeaderboard(tournamentRef.current);
                     }
-
-                    // Refresh ranking list
-                    await fetchLeaderboard();
                 });
             }
         }
@@ -456,11 +472,14 @@ export default function PhaserGame() {
         window.open(twitterUrl, '_blank');
     };
 
-    const fetchLeaderboard = async () => {
+    const fetchLeaderboard = async (tId?: string) => {
         try {
-            const url = connected && publicKey
-                ? `/api/leaderboard?address=${publicKey.toBase58()}&tournament_id=${activeTournament}`
-                : `/api/leaderboard?tournament_id=${activeTournament}`;
+            const currentWallet = walletRef.current;
+            const targetTournament = tId || tournamentRef.current;
+            
+            const url = currentWallet.connected && currentWallet.publicKey
+                ? `/api/leaderboard?address=${currentWallet.publicKey.toBase58()}&tournament_id=${targetTournament}`
+                : `/api/leaderboard?tournament_id=${targetTournament}`;
             const res = await fetch(url);
             const data = await res.json();
 
@@ -470,8 +489,8 @@ export default function PhaserGame() {
                 setHasPaid(data.has_paid);
             }
             // Anti-cheat check
-            if (connected && publicKey) {
-                const me = data.leaderboard?.find((p: any) => p.wallet_address === publicKey.toBase58());
+            if (currentWallet.connected && currentWallet.publicKey) {
+                const me = data.leaderboard?.find((p: any) => p.wallet_address === currentWallet.publicKey?.toBase58());
                 if (me?.is_banned) {
                     setIsBanned(true);
                 }
@@ -504,12 +523,14 @@ export default function PhaserGame() {
         }
     };
 
-    const submitScore = async (address: string, finalScore: number) => {
+    const submitScore = async (address: string, finalScore: number, finalOinks: number) => {
         try {
             setIsSyncing(true);
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (authToken) {
-                headers['Authorization'] = `Bearer ${authToken}`;
+            const currentToken = authRef.current;
+            
+            if (currentToken) {
+                headers['Authorization'] = `Bearer ${currentToken}`;
             }
 
             await fetch('/api/leaderboard', {
@@ -518,8 +539,8 @@ export default function PhaserGame() {
                 body: JSON.stringify({
                     wallet_address: address,
                     high_score: finalScore,
-                    oinks: oinks,
-                    tournament_id: activeTournament
+                    oinks: finalOinks,
+                    tournament_id: tournamentRef.current
                 })
             });
         } catch (error) {
