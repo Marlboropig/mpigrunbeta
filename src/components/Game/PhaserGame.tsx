@@ -5,7 +5,10 @@ import { GameConfig } from '@/game/config';
 import { MainScene, GameState } from '@/game/scenes/MainScene';
 import Link from 'next/link';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { 
+    WalletMultiButton,
+    useWalletModal 
+} from '@solana/wallet-adapter-react-ui';
 import bs58 from 'bs58';
 import { 
     createAssociatedTokenAccountInstruction 
@@ -39,6 +42,7 @@ export default function PhaserGame() {
     const gameRef = useRef<Phaser.Game | null>(null);
     const { publicKey, connected, signMessage, sendTransaction } = useWallet();
     const { connection } = useConnection();
+    const { setVisible } = useWalletModal();
 
     // Auth & Payment State
     const [authToken, setAuthToken] = useState<string | null>(null);
@@ -400,9 +404,8 @@ export default function PhaserGame() {
 
     const handleStartClick = async () => {
         if (!connected) {
-            // Trigger wallet connection if not connected
-            const walletBtn = document.querySelector('.wallet-adapter-button-trigger') as HTMLButtonElement;
-            if (walletBtn) walletBtn.click();
+            // Trigger wallet connection modal explicitly
+            setVisible(true);
             return;
         }
 
@@ -924,7 +927,7 @@ export default function PhaserGame() {
                                                 IDENTITY NOT SECURED
                                             </span>
                                             <button
-                                                onClick={() => document.querySelector('.wallet-adapter-button-trigger')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))}
+                                                onClick={() => setVisible(true)}
                                                 className="text-[8px] text-[#14F195] font-black uppercase tracking-[2px] underline hover:text-white transition-colors"
                                             >
                                                 CONNECT TO SAVE RANK
