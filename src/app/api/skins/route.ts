@@ -24,11 +24,25 @@ export async function GET(request: Request) {
             return NextResponse.json(data.map(item => item.skins));
         }
 
+        if (action === 'GET_PROFILE') {
+            if (!address) return NextResponse.json({ error: 'Missing address' }, { status: 400 });
+            
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('equipped_skin_id, skins(*)')
+                .eq('wallet_address', address)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error; // No profile yet is fine
+            return NextResponse.json(data ? data.skins : null);
+        }
+
         // Default to SHOP list
         const { data, error } = await supabase
             .from('skins')
             .select('*')
             .eq('is_active', true)
+            .order('price_usd', { ascending: true })
             .order('price_mpig', { ascending: true });
 
         if (error) throw error;
@@ -81,7 +95,29 @@ export async function POST(request: Request) {
                 throw invError;
             }
 
+            // Auto equip new skin
+            await supabase.from('user_profiles').upsert({
+                wallet_address,
+                equipped_skin_id: skin_id,
+                updated_at: new Date().toISOString()
+            });
+
             return NextResponse.json({ success: true, message: 'Skin Unlocked!' });
+        }
+
+        if (action === 'EQUIP') {
+            if (!wallet_address || !skin_id) {
+                return NextResponse.json({ error: 'Missing equip parameters' }, { status: 400 });
+            }
+
+            const { error: equipError } = await supabase.from('user_profiles').upsert({
+                wallet_address,
+                equipped_skin_id: skin_id,
+                updated_at: new Date().toISOString()
+            });
+
+            if (equipError) throw equipError;
+            return NextResponse.json({ success: true, message: 'Skin Equipped!' });
         }
 
         return NextResponse.json({ error: 'Unauthorized or Unknown Action' }, { status: 401 });

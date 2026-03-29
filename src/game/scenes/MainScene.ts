@@ -72,6 +72,10 @@ export class MainScene extends Phaser.Scene {
 
   preload() {
     // 1. Load Dynamic Skin
+    // Reset texture cache to allow loading new skins dynamicly
+    if (this.textures.exists('mpig_skin')) {
+      this.textures.remove('mpig_skin');
+    }
     this.load.image('mpig_skin', this.selectedSkinUrl);
 
     // 2. Load Core Assets
@@ -136,10 +140,18 @@ export class MainScene extends Phaser.Scene {
       emitting: false
     });
 
-    // 4. MPIG
-    this.mpig = this.physics.add.sprite(width * 0.25, height / 2, 'mpig_skin').setScale(0.1);
+    // 4. MPIG - Standardizing Size for all skins
+    this.mpig = this.physics.add.sprite(width * 0.25, height / 2, 'mpig_skin');
+    this.mpig.setDisplaySize(64, 64); // Absolute size (no more scaling)
     this.mpig.setCollideWorldBounds(true);
-    this.mpig.setBodySize(this.mpig.width * 0.55, this.mpig.height * 0.55);
+    
+    // Set absolute hitbox (40x40 center) so game difficulty is consistent
+    this.mpig.setBodySize(40, 40);
+    this.mpig.setOffset(
+      (this.mpig.width - 40) / 2,
+      (this.mpig.height - 40) / 2
+    );
+    
     (this.mpig.body as Phaser.Physics.Arcade.Body).allowGravity = false;
     this.particles.startFollow(this.mpig);
 
@@ -190,11 +202,11 @@ export class MainScene extends Phaser.Scene {
       }
     });
 
-    this.game.events.on('request-start-mission', (data: { skinUrl?: string }) => {
+    this.game.events.on('request-start-mission', (data: { skinUrl?: string, autoStart?: boolean }) => {
       this.state = GameState.IDLE;
       this.scene.restart({ 
           skinUrl: data?.skinUrl || this.selectedSkinUrl, 
-          autoStart: true 
+          autoStart: data?.autoStart ?? true 
       });
     });
 
@@ -208,6 +220,11 @@ export class MainScene extends Phaser.Scene {
     if (this.shouldAutoStart) {
       this.time.delayedCall(150, () => this.startGame());
     }
+
+    this.game.events.on('toggle-input', (enabled: boolean) => {
+      this.input.enabled = enabled;
+      if (this.input.keyboard) this.input.keyboard.enabled = enabled;
+    });
 
     this.game.events.emit('game-init');
   }

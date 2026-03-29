@@ -8,11 +8,15 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import bs58 from 'bs58';
 import { 
-    createTransferCheckedInstruction, 
-    getAssociatedTokenAddress, 
     createAssociatedTokenAccountInstruction 
 } from '@solana/spl-token';
-import { Transaction, PublicKey } from '@solana/web3.js';
+import { 
+    Transaction, 
+    PublicKey, 
+    SystemProgram, 
+    LAMPORTS_PER_SOL 
+} from '@solana/web3.js';
+import { getSolPriceInUSD, usdToSol } from '@/lib/price';
 
 // Base style for wallet button overrides
 const WALLET_STYLES = {
@@ -47,6 +51,43 @@ export default function PhaserGame() {
     const [shopSkins, setShopSkins] = useState<any[]>([]);
     const [inventory, setInventory] = useState<any[]>([]);
     const [selectedSkin, setSelectedSkin] = useState<any>(null);
+
+    // Load saved skin on mount
+    useEffect(() => {
+        const saved = localStorage.getItem('mpig-equipped-skin');
+        if (saved) {
+            try {
+                setSelectedSkin(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse saved skin");
+            }
+        }
+    }, []);
+
+    const handleEquipSkin = async (skin: any) => {
+        if (publicKey) {
+            await fetch('/api/skins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    action: 'EQUIP', 
+                    skin_id: skin.id, 
+                    wallet_address: publicKey.toBase58() 
+                })
+            });
+        }
+        
+        setSelectedSkin(skin);
+        localStorage.setItem('mpig-equipped-skin', JSON.stringify(skin));
+        
+        // Also tell Phaser immediately if game is initialized
+        if (gameRef.current) {
+            gameRef.current.events.emit('request-start-mission', { 
+                skinUrl: skin.image_url,
+                autoStart: false
+            });
+        }
+    };
 
     // UI State
     const [score, setScore] = useState(0);
@@ -145,7 +186,7 @@ export default function PhaserGame() {
                     const currentWallet = walletRef.current;
                     if (currentWallet.connected && currentWallet.publicKey) {
                         await submitScore(currentWallet.publicKey.toBase58(), finalScore, finalOinks);
-                        // Refresh ranking list with the correct tournament ID
+                        // Explicitly FORCE a new leaderboard fetch to update Global Rank UI
                         await fetchLeaderboard(tournamentRef.current);
                     }
                 });
@@ -196,12 +237,40 @@ export default function PhaserGame() {
         const fetchMyInventory = async () => {
             if (publicKey) {
                 const res = await fetch(`/api/skins?action=INVENTORY&address=${publicKey.toBase58()}`);
-                if (res.ok) setInventory(await res.json());
+                if (res.ok) {
+                    const data = await res.json();
+                    // Always ensure default skin is in inventory
+                    if (!data.some((s: any) => s.id === '00000000-0000-0000-0000-000000000000')) {
+                        data.unshift({
+                            id: '00000000-0000-0000-0000-000000000000',
+                            name: 'Classic MPIG',
+                            rarity: 'COMMON',
+                            price_usd: 0,
+                            image_url: '/assets/mpig.png',
+                            is_active: true
+                        });
+                    }
+                    setInventory(data);
+                }
             }
         };
+
+        const fetchMyProfile = async () => {
+            if (publicKey) {
+                const res = await fetch(`/api/skins?action=GET_PROFILE&address=${publicKey.toBase58()}`);
+                if (res.ok) {
+                    const skin = await res.json();
+                    if (skin) {
+                        setSelectedSkin(skin);
+                    }
+                }
+            }
+        };
+
         if (connected) {
             fetchMyStats();
             fetchMyInventory();
+            fetchMyProfile();
         }
 
         // Poll for config changes (Maintenance, Announcements)
@@ -221,7 +290,7 @@ export default function PhaserGame() {
                 gameRef.current = null;
             }
         };
-    }, []);
+    }, [connected, publicKey, activeTournament, activeTournament]); // Fetch profile and stats when wallet or tournament changes
 
     useEffect(() => {
         if (!connected) {
@@ -249,6 +318,13 @@ export default function PhaserGame() {
         }
     }, [connected, publicKey, activeTournament]);
 
+    // Sync modal state to Phaser input to prevent "click-through"
+    useEffect(() => {
+        if (!gameRef.current) return;
+        const isMenuOpen = isSkinShopOpen || isPaused || isBanned;
+        gameRef.current.events.emit('toggle-input', !isMenuOpen);
+    }, [isSkinShopOpen, isPaused, isBanned]);
+
     const togglePause = () => {
         if (gameRef.current) {
             gameRef.current.events.emit('request-pause');
@@ -257,7 +333,11 @@ export default function PhaserGame() {
 
     const handleRestart = () => {
         if (gameRef.current) {
-            gameRef.current.events.emit('request-restart');
+            // Re-emit with specific skin to ensure texture reloads correctly
+            gameRef.current.events.emit('request-start-mission', { 
+                skinUrl: selectedSkin?.image_url || '/assets/mpig.png',
+                autoStart: true
+            });
             setIsPaused(false);
         }
     };
@@ -278,7 +358,8 @@ export default function PhaserGame() {
         if (!gameRef.current) return;
         // Tell Phaser to start the mission - this will trigger restart and then game-start event
         gameRef.current.events.emit('request-start-mission', { 
-            skinUrl: selectedSkin?.image_url || '/assets/mpig.png' 
+            skinUrl: selectedSkin?.image_url || '/assets/mpig.png',
+            autoStart: true
         });
     };
 
@@ -286,7 +367,7 @@ export default function PhaserGame() {
         if (!publicKey || !signMessage) return;
         try {
             setIsSigning(true);
-            const message = "Sign this message to authenticate your MPIG game session.";
+            const message = "Sign this message to authenticate your USD game session.";
             const messageBytes = new TextEncoder().encode(message);
             const signature = await signMessage(messageBytes);
             const signatureBs58 = bs58.encode(signature);
@@ -327,10 +408,10 @@ export default function PhaserGame() {
 
         // 1. Check if tournament requires a fee and if paid
         const selectedT = tournaments.find(t => t.id === activeTournament);
-        const fee = selectedT?.entry_fee_mpig || 0;
+        const amountUsd = selectedT?.entry_fee_usd || 0;
 
-        if (fee > 0 && !hasPaid) {
-            handlePayEntry(fee);
+        if (amountUsd > 0 && !hasPaid) {
+            handlePayEntry(amountUsd);
             return;
         }
 
@@ -341,32 +422,28 @@ export default function PhaserGame() {
         }
     };
 
-    const handlePayEntry = async (amount: number) => {
+    const handlePayEntry = async (amountUsd: number) => {
         if (!publicKey || !sendTransaction) return;
         setIsPaying(true);
-        setStatus('Initiating Payment...');
+        setStatus('Negotiating Exchange...');
 
         try {
-            const MPIG_MINT = new PublicKey(process.env.NEXT_PUBLIC_MPIG_MINT || 'Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump');
-            const TREASURY = new PublicKey(process.env.NEXT_PUBLIC_ADMIN_WALLET || 'DtBk7Gm7mxzijoiyeT71caEWA3Rf6EFGdujt79ftS1VG');
-            
-            const senderATA = await getAssociatedTokenAddress(MPIG_MINT, publicKey);
-            const treasuryATA = await getAssociatedTokenAddress(MPIG_MINT, TREASURY);
-
             const transaction = new Transaction();
+            const TREASURY = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_WALLET || 'BM1HwiJ1hJBpadQF5tXu5qJYoVGQCXR3ABm4pJ4wepSQ');
 
-            // Note: In detailed apps, we should check if treasuryATA exists, 
-            // but for this MVP we assume the treasury is setup correctly with the token.
+            // --- NATIVE SOL PAYMENT (BASED ON USD) ---
+            const solPrice = await getSolPriceInUSD();
+            const solRequired = usdToSol(amountUsd, solPrice);
+            const lamports = Math.floor(solRequired * LAMPORTS_PER_SOL);
+            
+            setStatus(`Paying ${solRequired.toFixed(4)} SOL ($${amountUsd})...`);
             
             transaction.add(
-                createTransferCheckedInstruction(
-                    senderATA,
-                    MPIG_MINT,
-                    treasuryATA,
-                    publicKey,
-                    amount * 1000000, // Assuming 6 decimals like most SPL tokens
-                    6
-                )
+                SystemProgram.transfer({
+                    fromPubkey: publicKey,
+                    toPubkey: TREASURY,
+                    lamports: lamports
+                })
             );
 
             const signature = await sendTransaction(transaction, connection);
@@ -408,35 +485,55 @@ export default function PhaserGame() {
         setStatus(`Unlocking ${skin.name}...`);
         
         try {
-            if (skin.price_mpig > 0) {
-                // Same transaction logic as Phase 2
-                const MPIG_MINT = new PublicKey(process.env.NEXT_PUBLIC_MPIG_MINT || 'Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump');
-                const TREASURY = new PublicKey(process.env.NEXT_PUBLIC_ADMIN_WALLET || 'DtBk7Gm7mxzijoiyeT71caEWA3Rf6EFGdujt79ftS1VG');
-                const senderATA = await getAssociatedTokenAddress(MPIG_MINT, publicKey);
-                const treasuryATA = await getAssociatedTokenAddress(MPIG_MINT, TREASURY);
-                const transaction = new Transaction();
+            const transaction = new Transaction();
+            const TREASURY = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_WALLET || 'BM1HwiJ1hJBpadQF5tXu5qJYoVGQCXR3ABm4pJ4wepSQ');
+            let signature = '';
+
+            if (skin.price_usd > 0) {
+                // --- USD SOL PAYMENT ---
+                const solPrice = await getSolPriceInUSD();
+                const solRequired = usdToSol(skin.price_usd, solPrice);
+                const lamports = Math.floor(solRequired * LAMPORTS_PER_SOL);
+                
+                setStatus(`Paying ${solRequired.toFixed(4)} SOL ($${skin.price_usd})...`);
+                
                 transaction.add(
-                    createTransferCheckedInstruction(
-                        senderATA, MPIG_MINT, treasuryATA, publicKey,
-                        skin.price_mpig * 1000000, 6
-                    )
+                    SystemProgram.transfer({
+                        fromPubkey: publicKey,
+                        toPubkey: TREASURY,
+                        lamports: lamports
+                    })
                 );
-                await sendTransaction(transaction, connection);
+                signature = await sendTransaction(transaction, connection);
+            } 
+            else {
+                // Free skin or price set to 0
+                signature = 'FREE_UNLOCK'; 
             }
 
+            // Sync with backend
             const res = await fetch('/api/skins', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'PURCHASE', skin_id: skin.id, wallet_address: publicKey.toBase58() })
+                body: JSON.stringify({ 
+                    action: 'PURCHASE', 
+                    skin_id: skin.id, 
+                    wallet_address: publicKey.toBase58(),
+                    txHash: signature 
+                })
             });
 
             if (res.ok) {
                 setInventory(prev => [...prev, skin]);
                 setSelectedSkin(skin);
                 setStatus('Skin Unlocked!');
+            } else {
+                const err = await res.json();
+                alert(`Unlock Error: ${err.error}`);
             }
-        } catch (err) {
-            console.error(err);
+        } catch (err: any) {
+            console.error('Skin purchase failed:', err);
+            alert(`Purchase Failed: ${err.message}`);
         } finally {
             setIsPaying(false);
             setTimeout(() => setStatus(''), 5000);
@@ -444,7 +541,7 @@ export default function PhaserGame() {
     };
 
     const handleShare = async () => {
-        const shareText = `I just scored ${score} in MPIG RUN 🐷🔥\nThink you can beat my score?\n\n$MPIG`;
+        const shareText = `I just scored ${score} in USD RUN 🐷🔥\nThink you can beat my score?\n\n$MPIG`;
         const shareUrl = "https://mpigg.xyz";
 
         try {
@@ -702,7 +799,7 @@ export default function PhaserGame() {
                                         disabled={isSigning || isPaying}
                                         className="pill-button-gold w-full h-16 text-lg font-black tracking-[8px] hover:scale-[1.05] transition-all active:scale-95 shadow-[0_10px_40px_rgba(212,175,55,0.4)] border-2 border-[#FFE44D]/30"
                                     >
-                                        {!connected ? 'CONNECT TO START' : isPaying ? 'PAYING...' : isSigning ? 'AUTHENTICATING...' : (!hasPaid && tournaments.find(t => t.id === activeTournament)?.entry_fee_mpig > 0) ? `PAY ${tournaments.find(t => t.id === activeTournament)?.entry_fee_mpig} MPIG` : (!authToken) ? 'SIGN SECURELY' : 'TAP TO START'}
+                                        {!connected ? 'CONNECT TO START' : isPaying ? 'PAYING...' : isSigning ? 'AUTHENTICATING...' : (!hasPaid && tournaments.find(t => t.id === activeTournament)?.entry_fee_mpig > 0) ? `PAY ${tournaments.find(t => t.id === activeTournament)?.entry_fee_mpig} USD` : (!authToken) ? 'SIGN SECURELY' : 'TAP TO START'}
                                     </button>
 
                                 {/* Tournament Selection */}
@@ -907,10 +1004,10 @@ export default function PhaserGame() {
                                          <p className={`text-[7px] font-black uppercase tracking-[2px] mt-1 ${s.rarity === 'LEGENDARY' ? 'text-[#FFD700]' : 'text-[#9945FF]'}`}>{s.rarity}</p>
                                      </div>
                                      <button 
-                                         onClick={() => isOwned ? setSelectedSkin(s) : handlePurchaseSkin(s)}
+                                         onClick={() => isOwned ? handleEquipSkin(s) : handlePurchaseSkin(s)}
                                          className={`w-full py-2 rounded-xl text-[8px] font-black uppercase tracking-[4px] shadow-lg transition-all ${isEquipped ? 'bg-[#14F195] text-black shadow-[#14F195]/20' : isOwned ? 'bg-white/10 text-white' : 'bg-[#FFD700] text-black shadow-[#FFD700]/20 hover:scale-105 active:scale-95'}`}
                                      >
-                                         {isEquipped ? 'EQUIPPED' : isOwned ? 'EQUIP' : `${s.price_mpig} MPIG`}
+                                         {isEquipped ? 'EQUIPPED' : isOwned ? 'EQUIP' : `$${s.price_usd} USD`}
                                      </button>
                                  </div>
                              )

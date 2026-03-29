@@ -129,21 +129,21 @@ export async function GET(request: Request) {
 
         if (err2) throw err2;
 
-        // NEW: Calculate Economy Stats
+        // NEW: Calculate Economy Stats (USD Based)
         const { data: scores } = await supabase.from('tournament_scores').select('tournament_id').eq('has_paid', true);
-        const { data: tourData } = await supabase.from('tournaments').select('id, entry_fee_mpig');
+        const { data: tourData } = await supabase.from('tournaments').select('id, entry_fee_usd');
         let tournamentRevenue = 0;
         scores?.forEach(s => {
             const t = tourData?.find(tour => tour.id === s.tournament_id);
-            if (t) tournamentRevenue += (t.entry_fee_mpig || 0);
+            if (t) tournamentRevenue += Number(t.entry_fee_usd || 0);
         });
 
         const { data: inventory } = await supabase.from('user_inventory').select('skin_id');
-        const { data: skinData } = await supabase.from('skins').select('id, price_mpig');
+        const { data: skinData } = await supabase.from('skins').select('id, price_usd');
         let skinRevenue = 0;
         inventory?.forEach(i => {
             const s = skinData?.find(sk => sk.id === i.skin_id);
-            if (s) skinRevenue += (s.price_mpig || 0);
+            if (s) skinRevenue += Number(s.price_usd || 0);
         });
 
         const verifiedPlayers = allPlayers.filter(p => p.is_verified);

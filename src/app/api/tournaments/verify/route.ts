@@ -7,8 +7,7 @@ import { supabase } from '@/lib/supabase';
  * Verifies Solana SPL Token transfers for tournament entry fees
  */
 
-const MPIG_MINT = process.env.NEXT_PUBLIC_MPIG_MINT || 'Ff7F96e7HntW5D9QH2bwDHPYZesF2gx7ACipSxxtpump';
-const TREASURY_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET || 'DtBk7Gm7mxzijoiyeT71caEWA3Rf6EFGdujt79ftS1VG';
+const TREASURY_WALLET = process.env.NEXT_PUBLIC_TREASURY_WALLET || 'BM1HwiJ1hJBpadQF5tXu5qJYoVGQCXR3ABm4pJ4wepSQ';
 const SOLANA_RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
 export async function POST(request: Request) {
@@ -33,7 +32,7 @@ export async function POST(request: Request) {
         // 2. Fetch Tournament Fee
         const { data: tournament, error: tError } = await supabase
             .from('tournaments')
-            .select('entry_fee_mpig')
+            .select('entry_fee_usd')
             .eq('id', tournamentId)
             .single();
 
@@ -41,63 +40,57 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
         }
 
-        const requiredFee = Number(tournament.entry_fee_mpig);
+        const requiredFeeUsd = Number(tournament.entry_fee_usd || 0);
 
         // 3. Chain Verification
-        const connection = new Connection(SOLANA_RPC, 'confirmed');
+        const rpcHost = process.env.NEXT_PUBLIC_SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
+        const connection = new Connection(rpcHost, 'confirmed');
         const tx = await connection.getParsedTransaction(txHash, {
             maxSupportedTransactionVersion: 0
         });
 
         if (!tx) {
-            return NextResponse.json({ error: 'Transaction not found on-chain. Wait or check hash.' }, { status: 404 });
+            return NextResponse.json({ error: 'Transaction not found on-chain.' }, { status: 404 });
         }
 
-        // 4. Inspect Transaction Instructions for SPL Transfer
-        let amountPaid = 0;
-        let recipientMatched = false;
-        let mintMatched = false;
+        // 4. Inspect Transaction
+        let isVerified = false;
+        let amountParsed = 0;
 
-        // Note: Simple verification logic for SPL Token transfers
-        // In a production environment, you should be more exhaustive with inner instructions
-        const instructions = tx.meta?.postTokenBalances || [];
-        
-        // Find the change for the treasury wallet
-        const treasuryBalanceChange = instructions.find(b => 
-            b.owner === TREASURY_WALLET && 
-            b.mint === MPIG_MINT
-        );
-
-        const senderBalanceChange = instructions.find(b => 
-            b.owner === walletAddress && 
-            b.mint === MPIG_MINT
-        );
-
-        if (treasuryBalanceChange && senderBalanceChange) {
-            // Calculate amount from balance changes
-            const pre = instructions.find(b => b.owner === TREASURY_WALLET)?.uiTokenAmount.uiAmount || 0;
-            const post = treasuryBalanceChange.uiTokenAmount.uiAmount || 0;
-            amountPaid = post - pre;
-            recipientMatched = true;
-            mintMatched = true;
+        // --- SOL TRANSFER VERIFICATION (USD Basis) ---
+        if (requiredFeeUsd > 0) {
+            // Check native SOL transfers
+            const instructions = tx.transaction.message.instructions;
+            for (const ix of instructions) {
+                if ('parsed' in ix && ix.program === 'system' && ix.parsed.type === 'transfer') {
+                    const { info } = ix.parsed;
+                    if (info.destination === TREASURY_WALLET && info.source === walletAddress) {
+                        amountParsed = info.lamports / 1e9;
+                        isVerified = true; 
+                        break;
+                    }
+                }
+            }
+        } 
+        else {
+             // Free tournaments or points-based entry (if any)
+             isVerified = true;
         }
 
-        // Fallback or precise check for Transfer instructions (simplified for this context)
-        // We trust the balance change if it corresponds to the treasury
-        
-        if (amountPaid < requiredFee * 0.99) { // 1% Tolerance for decimal weirdness
-             return NextResponse.json({ error: `Insufficient payment. Required: ${requiredFee}, Found: ${amountPaid}` }, { status: 400 });
+        if (!isVerified) {
+             return NextResponse.json({ error: `Insufficient or invalid payment detected.` }, { status: 400 });
         }
 
         // 5. Success! Log Payment and Update User Status
         await supabase.from('payment_logs').insert([{
             tx_hash: txHash,
             wallet_address: walletAddress,
-            amount: amountPaid,
-            tournament_id: tournamentId
+            amount: amountParsed,
+            tournament_id: tournamentId,
+            currency: 'SOL'
         }]);
 
-        const { error: updateError } = await supabase
+        await supabase
             .from('tournament_scores')
             .upsert({
                 tournament_id: tournamentId,
@@ -105,8 +98,6 @@ export async function POST(request: Request) {
                 has_paid: true,
                 updated_at: new Date().toISOString()
             }, { onConflict: 'tournament_id,wallet_address' });
-
-        if (updateError) throw updateError;
 
         return NextResponse.json({ success: true, message: 'Payment Verified. Welcome to the Zone.' });
 

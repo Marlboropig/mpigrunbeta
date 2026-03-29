@@ -62,9 +62,18 @@ export default function AdminPage() {
 
     // Modal State
     const [isTournamentModalOpen, setIsTournamentModalOpen] = useState(false);
-    const [newTournament, setNewTournament] = useState({ name: '', description: 'Custom Zone', entry_fee_mpig: 100 });
+    const [newTournament, setNewTournament] = useState({ 
+        name: '', 
+        description: 'Custom Zone', 
+        entry_fee_usd: 1.00 // Default to $1
+    });
     const [isSkinModalOpen, setIsSkinModalOpen] = useState(false);
-    const [newSkin, setNewSkin] = useState({ name: '', rarity: 'COMMON', price_mpig: 100, image_url: '/assets/player.webp' });
+    const [newSkin, setNewSkin] = useState({ 
+        name: '', 
+        rarity: 'COMMON', 
+        price_usd: 5.00, // Default to $5
+        image_url: '/assets/player.webp' 
+    });
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [notification, setNotification] = useState<{ type: 'SUCCESS' | 'ERROR' | 'INFO', message: string } | null>(null);
 
@@ -114,7 +123,7 @@ export default function AdminPage() {
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `mpig_mission_report_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute("download", `USD_mission_report_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -400,8 +409,8 @@ export default function AdminPage() {
                                                 </td>
                                                 <td className="px-6 py-10 text-center">
                                                     <div className="flex flex-col gap-1 items-center">
-                                                        <span className="text-xl font-black text-white">{t.entry_fee_mpig}</span>
-                                                        <span className="text-[7px] text-[#FFD700] font-black tracking-[2px]">MPIG COIN</span>
+                                                        <span className="text-xl font-black text-white">{t.entry_fee_usd}</span>
+                                                        <span className="text-[7px] text-[#FFD700] font-black tracking-[2px]">SOLANA (USD)</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-12 py-10 text-right space-x-4">
@@ -438,7 +447,7 @@ export default function AdminPage() {
                                         <tr>
                                             <th className="px-12 py-8">SKIN IDENTITY</th>
                                             <th className="px-6 py-8 text-center uppercase">RARITY</th>
-                                            <th className="px-6 py-8 text-center uppercase">PRICE ($MPIG)</th>
+                                            <th className="px-6 py-8 text-center uppercase">PRICE ($USD)</th>
                                             <th className="px-12 py-8 text-right uppercase">PROTOCOL</th>
                                         </tr>
                                     </thead>
@@ -464,8 +473,8 @@ export default function AdminPage() {
                                                 </td>
                                                 <td className="px-6 py-10 text-center">
                                                     <div className="flex flex-col gap-1 items-center">
-                                                        <span className="text-xl font-black text-white">{s.price_mpig}</span>
-                                                        <span className="text-[7px] text-[#FFD700] font-black tracking-[2px]">MPIG COIN</span>
+                                                        <span className="text-xl font-black text-white">{s.price_usd}</span>
+                                                        <span className="text-[7px] text-[#FFD700] font-black tracking-[2px]">SOLANA (USD)</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-12 py-10 text-right space-x-4">
@@ -489,7 +498,7 @@ export default function AdminPage() {
                             <div className="flex justify-between items-end">
                                 <div>
                                     <h2 className="text-xl font-black tracking-[8px] uppercase text-[#FFD700]">TREASURY INTELLIGENCE</h2>
-                                    <p className="text-[9px] text-white/30 tracking-[4px] uppercase mt-2">MONITOR $MPIG INFLOW AND REWARD OBLIGATIONS</p>
+                                    <p className="text-[9px] text-white/30 tracking-[4px] uppercase mt-2">MONITOR $USD INFLOW AND REWARD OBLIGATIONS</p>
                                 </div>
                             </div>
 
@@ -497,7 +506,7 @@ export default function AdminPage() {
                                 <div className="p-8 md:p-10 bg-white/5 border border-white/10 rounded-4xl backdrop-blur-md relative overflow-hidden group">
                                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#FFD700]/5 rounded-full blur-3xl group-hover:bg-[#FFD700]/10 transition-all" />
                                     <span className="text-[8px] font-black text-white/20 tracking-[3px] uppercase">TOURNAMENT REVENUE</span>
-                                    <p className="text-5xl font-black text-white mt-4">{stats?.tournamentRevenue || 0} <span className="text-[#FFD700] text-sm tracking-widest">$MPIG</span></p>
+                                    <p className="text-5xl font-black text-white mt-4">{stats?.tournamentRevenue || 0} <span className="text-[#FFD700] text-sm tracking-widest">$USD</span></p>
                                     <div className="w-full h-1 bg-white/5 mt-8 rounded-full overflow-hidden">
                                         <div className="w-2/3 h-full bg-[#FFD700]/40" />
                                     </div>
@@ -505,7 +514,7 @@ export default function AdminPage() {
                                 <div className="p-10 bg-white/5 border border-white/10 rounded-4xl backdrop-blur-md relative overflow-hidden group">
                                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#14F195]/5 rounded-full blur-3xl group-hover:bg-[#14F195]/10 transition-all" />
                                     <span className="text-[8px] font-black text-white/20 tracking-[3px] uppercase">COSMETIC REVENUE</span>
-                                    <p className="text-5xl font-black text-white mt-4">{stats?.skinRevenue || 0} <span className="text-[#14F195] text-sm tracking-widest">$MPIG</span></p>
+                                    <p className="text-5xl font-black text-white mt-4">{stats?.skinRevenue || 0} <span className="text-[#14F195] text-sm tracking-widest">$USD</span></p>
                                     <div className="w-full h-1 bg-white/5 mt-8 rounded-full overflow-hidden">
                                         <div className="w-1/3 h-full bg-[#14F195]/40" />
                                     </div>
@@ -621,12 +630,12 @@ export default function AdminPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-white/40 tracking-[3px] uppercase">ENTRY FEE (MPIG)</label>
-                            <input type="number" value={newTournament.entry_fee_mpig} onChange={(e) => setNewTournament({ ...newTournament, entry_fee_mpig: parseInt(e.target.value) })} className="w-full h-14 bg-black/60 border-2 border-white/5 rounded-2xl px-6 text-white font-bold tracking-widest outline-none focus:border-[#14F195]/20" />
+                            <label className="text-[9px] font-black text-[#FFD700] tracking-[3px] uppercase">ZONE FEE (USD)</label>
+                            <input type="number" step="0.01" value={newTournament.entry_fee_usd} onChange={(e) => setNewTournament({ ...newTournament, entry_fee_usd: parseFloat(e.target.value) })} className="w-full h-14 bg-black/60 border-2 border-white/5 rounded-2xl px-6 text-white font-bold tracking-widest outline-none focus:border-[#FFD700]/20" />
                         </div>
                         <div className="flex items-end">
                             <button onClick={() => handleTournamentAction('CREATE', undefined, newTournament)} className="w-full h-14 bg-[#14F195] text-black font-black tracking-[4px] uppercase rounded-2xl transition-all shadow-xl">
-                                DEPLOY ZONE
+                                DEPLOY
                             </button>
                         </div>
                     </div>
@@ -645,17 +654,16 @@ export default function AdminPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-white/40 tracking-[3px] uppercase">RARITY LEVEL</label>
+                            <label className="text-[9px] font-black text-white/40 tracking-[3px] uppercase">RARITY</label>
                             <select value={newSkin.rarity} onChange={(e) => setNewSkin({ ...newSkin, rarity: e.target.value })} className="w-full h-14 bg-black/60 border-2 border-white/5 rounded-2xl px-6 text-white font-bold tracking-widest outline-none focus:border-[#9945FF]/40">
                                 <option value="COMMON">COMMON</option>
                                 <option value="RARE">RARE</option>
                                 <option value="LEGENDARY">LEGENDARY</option>
-                                <option value="LIMITED">LIMITED</option>
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[9px] font-black text-white/40 tracking-[3px] uppercase">PRICE (MPIG)</label>
-                            <input type="number" value={newSkin.price_mpig} onChange={(e) => setNewSkin({ ...newSkin, price_mpig: parseInt(e.target.value) })} className="w-full h-14 bg-black/60 border-2 border-white/5 rounded-2xl px-6 text-white font-bold tracking-widest outline-none focus:border-[#FFD700]/20" />
+                            <label className="text-[9px] font-black text-[#FFD700] tracking-[3px] uppercase">PRICE (USD)</label>
+                            <input type="number" step="0.01" value={newSkin.price_usd} onChange={(e) => setNewSkin({ ...newSkin, price_usd: parseFloat(e.target.value) })} className="w-full h-14 bg-black/60 border-2 border-white/5 rounded-2xl px-6 text-white font-bold tracking-widest outline-none focus:border-[#FFD700]/20" />
                         </div>
                     </div>
                     <div className="space-y-2">
